@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>تن فيز — إدخال منفصل للجولات (موبايل ثابت)</title>
+  <title>تن فيز — إدخال منفصل للجولات (نسخة كاملة بإصلاح الجولة)</title>
   <style>
     :root{ --bg:#f3f7ff; --ink:#0b2340; --muted:#6b7a90; --card:#ffffff; --shadow:0 10px 28px rgba(11,35,64,.12);
            --primary:#2563eb; --accent:#22c55e; --warn:#ef4444; --gold:#fbbf24; --silver:#c0c7d1; }
     *{box-sizing:border-box}
     body{font-family:Tahoma,Arial,sans-serif;background:linear-gradient(180deg,#f0f6ff 0%, #f8fbff 40%, #ffffff 100%);min-height:100vh;margin:0;padding:16px;color:var(--ink)}
-    .container{max-width:1100px;margin:0 auto; padding-bottom:110px;}
+    .container{max-width:1100px;margin:0 auto; padding-bottom:120px;}
     .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
     .hero{padding:18px 20px;background:linear-gradient(90deg,#e8f0ff,#fff);display:flex;align-items:center;gap:14px;border:1px solid #e6eefc}
     .badge{background:#eef4ff;color:#234; padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid #dbe7ff}
@@ -24,13 +24,13 @@
     button.warn{background:var(--warn)}
     button.good{background:var(--accent)}
     .table-wrap{overflow:auto;-webkit-overflow-scrolling:touch;border-radius:12px;border:1px solid #e8f1ff}
-    table{width:max(800px,100%);border-collapse:collapse}
+    table{width:max(900px,100%);border-collapse:collapse}
     th,td{padding:10px;border-bottom:1px solid #eef4fb;text-align:center;white-space:nowrap}
     tbody tr:nth-child(odd){background:#fcfeff}
     .first{background:linear-gradient(90deg,#fffbeb,#fff4cc); border-inline-start:6px solid var(--gold)}
     .second{background:linear-gradient(90deg,#f7f8fc,#eef2f7); border-inline-start:6px solid var(--silver)}
     .last{background:linear-gradient(90deg,#fff1f2,#ffe4e6); border-inline-start:6px solid var(--warn)}
-    .toast{position:fixed;inset-inline:0;bottom:90px;margin:auto;max-width:360px;background:#0b2340;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s}
+    .toast{position:fixed;inset-inline:0;bottom:100px;margin:auto;max-width:380px;background:#0b2340;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s}
     .toast.show{opacity:1;transform:translateY(0)}
     .bottom-bar{position:fixed;inset-inline:0;bottom:0;background:#ffffffcc;backdrop-filter:blur(6px);border-top:1px solid #e7eefc;padding:10px;display:none;gap:8px}
     .bottom-bar > button{flex:1}
@@ -40,13 +40,13 @@
     .entry{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     @media (max-width: 640px){
       body{padding:12px}
-      .container{padding:0; padding-bottom:120px;}
+      .container{padding:0; padding-bottom:130px;}
       .hero{flex-direction:column;align-items:flex-start}
       .toolbar input, .roombar input, .entry input, .entry select{flex:1;max-width:none}
       .toolbar button, .roombar button, .entry button{flex:1}
       th,td{padding:8px 6px}
       .bottom-bar{display:flex}
-      .toast{bottom:100px}
+      .toast{bottom:110px}
     }
   </style>
   <!-- Firebase -->
@@ -79,19 +79,19 @@
         <button id="nextRound" class="ghost">الجولة التالية ⟶</button>
         <button id="toggleMode" class="pill">وضع الجولات (مركّز)</button>
       </div>
-      <p style="margin-top:8px;color:#6b7a90;font-size:13px">على الجوال: دخل درجتك في الصندوق تحت، والجدول يعرض بس.</p>
+      <p style="margin-top:8px;color:#6b7a90;font-size:13px">على الجوال: دخل درجتك في الصندوق تحت، والجدول يعرض فقط.</p>
     </div>
 
-    <!-- إدخال درجتي (منفصل وثابت لا يعاد رسمه) -->
+    <!-- إدخال درجتي (منفصل) -->
     <div class="card">
       <div class="entry">
         <select id="myPlayerSelect" title="اختَر لاعبك"></select>
         <input id="myScore" type="number" inputmode="numeric" placeholder="درجة الجولة الحالية"/>
         <button id="saveScore" class="good">حفظ درجتي</button>
-        <button id="addPlayer" class="ghost">+ أضف لاعب (لي)</button>
+        <button id="addPlayer" class="ghost">+ أضف لاعب</button>
         <button id="deleteMine" class="warn">حذف لاعبي</button>
       </div>
-      <p style="margin-top:8px;color:#6b7a90;font-size:12px">ملحوظة: كل لاعب يعدّل صفّه فقط. لو الأدمن كان أضافك قبل كده، امسح الصف القديم وأضف لاعب جديد بنفسك.</p>
+      <p style="margin-top:8px;color:#6b7a90;font-size:12px">ملحوظة: كل لاعب يعدّل صفّه فقط. لو الأدمن كان أضافك قبل كده، امسح الصف القديم وأضف لاعبًا بنفسك.</p>
     </div>
 
     <!-- أدوات عامة -->
@@ -111,7 +111,7 @@
           <thead>
             <tr id="theadRow">
               <th>اللاعب</th>
-              <!-- أعمدة الجولات تتولد هنا كنص فقط -->
+              <!-- أعمدة الجولات تتولّد كنص فقط -->
               <th>المجموع</th>
               <th>الترتيب</th>
             </tr>
@@ -163,28 +163,31 @@ let roomRef=null, unsubPlayers=null, unsubRoom=null, roomOwner=null;
 let myPlayers = []; // [{id,name}]
 let currentPlayerId = null;
 
-const playersBody=document.getElementById('playersBody');
-const theadRow=document.getElementById('theadRow');
-const toastEl=document.getElementById('toast');
-const selMy=document.getElementById('myPlayerSelect');
-const myScoreInput=document.getElementById('myScore');
-
-function toast(m){ toastEl.textContent=m; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'),2000); }
+/* helpers */
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
 function getTotal(scores){ return (scores||[]).reduce((s,v)=> s+(Number.isFinite(v)?v:0),0); }
 function updateRoundBadge(){ document.getElementById('roundBadge').textContent=`جولة ${currentRound} / ${roundsCount}`; }
-
 function renderHeader(){
+  const theadRow=document.getElementById('theadRow');
   while(theadRow.children.length>1) theadRow.removeChild(theadRow.children[1]);
+  // نعرض عمود جولة واحدة أو كل الجولات (نص فقط)
   const addTh=r=>{ const th=document.createElement('th'); th.textContent=`جولة ${r}`; theadRow.insertBefore(th, theadRow.children[1]); };
-  if(singleRoundMode) addTh(currentRound); else for(let r=1;r<=roundsCount;r++) addTh(r);
+  if(singleRoundMode){ addTh(currentRound); } else { for(let r=1;r<=roundsCount;r++) addTh(r); }
+}
+function roundIndex(){
+  // يحوّل currentRound دائماً إلى 0..9 مهما حصل
+  const r = Number(currentRound) || 1;
+  return Math.max(0, Math.min(roundsCount - 1, r - 1));
 }
 
+/* رسم الجدول */
 function drawTable(players){
   const arr = players.map(p=>({...p, total:getTotal(p.scores)})).sort((a,b)=>a.total-b.total);
   let rank=1; for(let i=0;i<arr.length;i++){ if(i>0 && arr[i].total===arr[i-1].total){ arr[i].rank=arr[i-1].rank; } else { arr[i].rank=rank; } rank++; }
   const worst = arr.length? arr[arr.length-1].total : null;
 
-  playersBody.innerHTML='';
+  const body=document.getElementById('playersBody');
+  body.innerHTML='';
   arr.forEach(p=>{
     const tr=document.createElement('tr');
     if(p.rank===1) tr.classList.add('first'); else if(p.rank===2) tr.classList.add('second');
@@ -192,12 +195,12 @@ function drawTable(players){
 
     const tdName=document.createElement('td'); tdName.textContent=p.name||'—'; tr.appendChild(tdName);
 
-    const startR = singleRoundMode ? currentRound-1 : 0;
-    const endR   = singleRoundMode ? currentRound   : roundsCount;
+    const startR = singleRoundMode ? roundIndex() : 0; // لو وضع مركّز، اعرض الجولة الحالية فقط
+    const endR   = singleRoundMode ? startR+1       : roundsCount;
     for(let r=startR; r<endR; r++){
       const td=document.createElement('td');
       const val = (p.scores && p.scores[r]!=null) ? p.scores[r] : '—';
-      td.textContent = val; // 🔒 نص فقط — لا إدخال داخل الجدول
+      td.textContent = val; // نص فقط
       tr.appendChild(td);
     }
 
@@ -207,29 +210,27 @@ function drawTable(players){
     let label=p.rank!=null?p.rank:'-'; if(p.rank===1) label='الأول 👑'; else if(p.rank===2) label='الثاني'; if(p.total===worst) label='الكوز 🪣';
     tdRank.textContent=label; tr.appendChild(tdRank);
 
-    playersBody.appendChild(tr);
+    body.appendChild(tr);
   });
 }
 
+/* اختيار لاعبي */
 function populateMyPlayersSelect(allPlayers){
+  const sel = document.getElementById('myPlayerSelect');
   myPlayers = allPlayers.filter(p=>p.uid===myUid).map(p=>({id:p.id,name:p.name||'بدون اسم'}));
-  selMy.innerHTML='';
+  sel.innerHTML='';
   if(myPlayers.length===0){
     const opt=document.createElement('option'); opt.value=''; opt.textContent='لا يوجد لاعب لك — اضف لاعب';
-    selMy.appendChild(opt); currentPlayerId=null;
+    sel.appendChild(opt); currentPlayerId=null;
   }else{
-    myPlayers.forEach((pl,i)=>{
-      const opt=document.createElement('option'); opt.value=pl.id; opt.textContent=pl.name;
-      selMy.appendChild(opt);
-    });
-    // اختَر آخر لاعب لك تلقائياً
-    if(!currentPlayerId || !myPlayers.find(p=>p.id===currentPlayerId)){
-      currentPlayerId = myPlayers[myPlayers.length-1].id;
-    }
-    selMy.value = currentPlayerId;
+    myPlayers.forEach(pl=>{ const opt=document.createElement('option'); opt.value=pl.id; opt.textContent=pl.name; sel.appendChild(opt); });
+    if(!currentPlayerId || !myPlayers.find(p=>p.id===currentPlayerId)){ currentPlayerId = myPlayers[myPlayers.length-1].id; }
+    sel.value=currentPlayerId;
   }
 }
+document.getElementById('myPlayerSelect').addEventListener('change', (e)=>{ currentPlayerId = e.target.value || null; });
 
+/* الاشتراك بالغرفة */
 function subscribeToRoom(code){
   if(unsubPlayers) unsubPlayers(); if(unsubRoom) unsubRoom();
   roomRef = db.collection('rooms').doc(code);
@@ -243,12 +244,12 @@ function subscribeToRoom(code){
   toast('تم الاتصال بالغرفة '+code);
 }
 
-/* جولات */
+/* أزرار الجولات */
 document.getElementById('prevRound').addEventListener('click', ()=>{ currentRound=Math.max(1,currentRound-1); renderHeader(); updateRoundBadge(); if(roomRef) subscribeToRoom(roomRef.id); });
 document.getElementById('nextRound').addEventListener('click', ()=>{ currentRound=Math.min(roundsCount,currentRound+1); renderHeader(); updateRoundBadge(); if(roomRef) subscribeToRoom(roomRef.id); });
 document.getElementById('toggleMode').addEventListener('click', ()=>{ singleRoundMode=!singleRoundMode; renderHeader(); updateRoundBadge(); if(roomRef) subscribeToRoom(roomRef.id); toast(singleRoundMode?'وضع الجولات (مركّز)':'عرض كل الجولات'); });
 
-/* غرفة */
+/* إنشاء/دخول غرفة */
 function randomCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
 document.getElementById('createRoom').addEventListener('click', async ()=>{
   try{
@@ -281,11 +282,10 @@ document.getElementById('addPlayer').addEventListener('click', async ()=>{
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     currentPlayerId = docRef.id;
+    populateMyPlayersSelect(myPlayers.map(x=>x)); // تحديث سريع للاختيار
     toast('تم إضافة لاعب لك');
   }catch(e){ console.error(e); toast('فشل إضافة اللاعب: '+e.message); }
 });
-
-selMy.addEventListener('change', ()=>{ currentPlayerId = selMy.value || null; });
 
 document.getElementById('deleteMine').addEventListener('click', async ()=>{
   try{
@@ -294,27 +294,32 @@ document.getElementById('deleteMine').addEventListener('click', async ()=>{
     if(!currentPlayerId){ toast('اختر لاعبك أولًا'); return; }
     if(!confirm('حذف لاعبك؟')) return;
     await roomRef.collection('players').doc(currentPlayerId).delete();
-    currentPlayerId=null; toast('تم حذف لاعبك');
+    currentPlayerId=null; document.getElementById('myPlayerSelect').value='';
+    toast('تم حذف لاعبك');
   }catch(e){ console.error(e); toast('فشل حذف لاعبك: '+e.message); }
 });
 
-/* حفظ درجتي للجولة الحالية (منفصل عن الجدول) */
+/* حفظ درجتي (إصلاح الجولة عبر roundIndex) */
 document.getElementById('saveScore').addEventListener('click', async ()=>{
   try{
     await ensureAuth();
     if(!roomRef){ toast('ادخل غرفة أولًا'); return; }
     if(!currentPlayerId){ toast('اختر لاعبك أولًا أو أضف لاعب'); return; }
-    const v = myScoreInput.value.trim();
+    const vEl=document.getElementById('myScore'); const v=vEl.value.trim();
     if(v==='' || isNaN(Number(v))){ toast('اكتب درجة صحيحة'); return; }
-    const docRef = roomRef.collection('players').doc(currentPlayerId);
-    const snap = await docRef.get();
+
+    const ref = roomRef.collection('players').doc(currentPlayerId);
+    const snap = await ref.get();
     if(!snap.exists){ toast('لاعبك غير موجود'); return; }
     if(snap.data().uid !== myUid){ toast('تقدر تعدّل لاعبك فقط'); return; }
+
     const scores = Array.isArray(snap.data().scores) ? [...snap.data().scores] : Array(roundsCount).fill(null);
-    scores[currentRound-1] = Number(v);
-    await docRef.update({scores, updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
-    toast('اتحفظت درجتك');
-    myScoreInput.value='';
+    const idx = roundIndex(); // ← الضمان
+    scores[idx] = Number(v);
+
+    await ref.update({ scores, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    toast(`اتحفظت درجتك في الجولة ${idx+1}`);
+    vEl.value='';
   }catch(e){ console.error(e); toast('فشل الحفظ: '+e.message); }
 });
 
@@ -328,7 +333,7 @@ document.getElementById('calc').addEventListener('click', async ()=>{
     const best=totals.length?totals[0].total:null, worst=totals.length?totals[totals.length-1].total:null;
     await roomRef.set({leaderboard:totals,lastCalcAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     const winners=totals.filter(t=>t.total===best).map(t=>t.name).join('، '), kooz=totals.filter(t=>t.total===worst).map(t=>t.name).join('، ');
-    toast(`الفائز: ${winners} — الكوز: ${kooz}`);
+    toast(`الفائز: ${winners} — الكوز: ${koوز}`);
   }catch(e){ console.error(e); toast('فشل الحساب: '+e.message); }
 });
 document.getElementById('clearMyScores').addEventListener('click', async ()=>{
@@ -350,16 +355,14 @@ document.getElementById('clearAll').addEventListener('click', async ()=>{
   }catch(e){ console.error(e); toast('فشل المسح: '+e.message); }
 });
 
-/* الجداول والرؤوس */
+/* رؤوس الجولات + تنقل */
 function refreshHeaders(){ renderHeader(); updateRoundBadge(); if(roomRef) subscribeToRoom(roomRef.id); }
 document.getElementById('prevRound').addEventListener('click', ()=>{ currentRound=Math.max(1,currentRound-1); refreshHeaders(); });
 document.getElementById('nextRound').addEventListener('click', ()=>{ currentRound=Math.min(roundsCount,currentRound+1); refreshHeaders(); });
 document.getElementById('toggleMode').addEventListener('click', ()=>{ singleRoundMode=!singleRoundMode; refreshHeaders(); toast(singleRoundMode?'وضع الجولات (مركّز)':'عرض كل الجولات'); });
 
-/* تهيئة */
+/* تهيئة أولية + تحسين شريط الجوال أثناء الكتابة */
 renderHeader(); updateRoundBadge();
-
-/* تحسين شريط الجوال أثناء الكتابة */
 const bottomBar=document.querySelector('.bottom-bar');
 document.addEventListener('focusin', (e)=>{ if(e.target.tagName==='INPUT' || e.target.tagName==='SELECT') bottomBar.style.display='none'; });
 document.addEventListener('focusout', ()=>{ if(window.matchMedia('(max-width: 640px)').matches) bottomBar.style.display='flex'; });
@@ -367,14 +370,14 @@ document.getElementById('mCalc').addEventListener('click', ()=> document.getElem
 document.getElementById('mClear').addEventListener('click', ()=> document.getElementById('clearMyScores').click());
 </script>
 
-<!-- Firestore Rules للبيئة الحقيقية (انشرها بعد ما تتأكد):
+<!-- Firestore Rules المقترحة (للإنتاج بعد التجربة):
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /rooms/{room} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update: if request.auth != null; // تحديث leaderboard
+      allow update: if request.auth != null; // أي حد يحدّث leaderboard
       allow delete: if false;
     }
     match /rooms/{room}/players/{player} {
