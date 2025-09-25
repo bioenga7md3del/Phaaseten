@@ -18,7 +18,6 @@
     input, select, button{font-size:16px}
     input[type=text], input[type=number], select{padding:12px 14px;border-radius:12px;border:1px solid #d8e4f5;background:#fafcff;outline:none;transition:.2s}
     input[type=number]{text-align:left; direction:ltr}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .toolbar, .entry, .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .entry input, .entry select{flex:1;min-width:120px}
     .toolbar button, .entry button{min-height:44px}
@@ -91,12 +90,7 @@
       <div class="table-wrap">
         <table id="playersTable">
           <thead>
-            <tr id="theadRow">
-              <th>اللاعب</th>
-              <!-- أعمدة الجولات تتولد برمجيًا هنا -->
-              <th>المجموع</th>
-              <th>الترتيب</th>
-            </tr>
+            <tr id="theadRow"></tr>
           </thead>
           <tbody id="playersBody"></tbody>
         </table>
@@ -137,8 +131,8 @@
     function saveLocal(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(players)); }
     function loadLocal(){ try{ const raw=localStorage.getItem(STORAGE_KEY); players = raw? JSON.parse(raw) : []; }catch{ players=[]; } }
 
+    // يبني الهيدر بالترتيب الصحيح: اللاعب | جولة1..10 | المجموع | الترتيب
     function buildHeader(){
-      // اعادة بناء الهيدر بالترتيب الصحيح
       els.thead.innerHTML = '';
 
       const thName = document.createElement('th');
@@ -160,6 +154,7 @@
       els.thead.appendChild(thRank);
     }
 
+    // يرسم الصفوف + يحسب الترتيب (الأقل يفوز)
     function drawTable(){
       const arr = players.map(p=>({...p, total: total(p.scores)}));
       arr.sort((a,b)=> a.total - b.total);
@@ -204,6 +199,7 @@
       rebuildSelect();
     }
 
+    // يبني قايمة اللاعبين لاختيار لاعب للإدخال
     function rebuildSelect(){
       const cur = els.selPlayer.value;
       els.selPlayer.innerHTML='';
@@ -212,11 +208,17 @@
         opt.value=p.id; opt.textContent=p.name;
         els.selPlayer.appendChild(opt);
       });
-      if(players.length===0){ const opt=document.createElement('option'); opt.value=''; opt.textContent='لا يوجد لاعبين'; els.selPlayer.appendChild(opt); }
-      else if(!players.find(p=>p.id===cur)){ els.selPlayer.value = players[players.length-1].id; }
-      else { els.selPlayer.value = cur; }
+      if(players.length===0){
+        const opt=document.createElement('option'); opt.value=''; opt.textContent='لا يوجد لاعبين';
+        els.selPlayer.appendChild(opt);
+      } else if(!players.find(p=>p.id===cur)){
+        els.selPlayer.value = players[players.length-1].id;
+      } else {
+        els.selPlayer.value = cur;
+      }
     }
 
+    // يبني قايمة الجولات 1..10
     function rebuildRoundSelect(){
       els.selRound.innerHTML='';
       for(let r=1;r<=ROUNDS;r++){
@@ -227,7 +229,8 @@
       els.selRound.value = '1';
     }
 
-    els.add.addEventListener('click', ()=>{
+    // أحداث الأزرار
+    document.getElementById('addPlayer').addEventListener('click', ()=>{
       const name = (els.name.value||'').trim();
       if(!name){ toast('اكتب اسم اللاعب'); return; }
       players.push({id:uid(), name, scores:Array(ROUNDS).fill(null)});
@@ -236,16 +239,22 @@
       toast('تم إضافة لاعب');
     });
 
-    els.clearAll.addEventListener('click', ()=>{
+    document.getElementById('clearAll').addEventListener('click', ()=>{
       if(!confirm('مسح جميع اللاعبين والدرجات؟')) return;
       players=[]; saveLocal(); drawTable();
       toast('تم مسح الكل');
     });
 
-    els.save.addEventListener('click', ()=>{
+    // حفظ الدرجة في المكان الصحيح: roundIndex = (round - 1)
+    function roundIndexFromSelect(){
+      const r = Math.max(1, Math.min(ROUNDS, Number(els.selRound.value)||1)) - 1; // 0..9
+      return r;
+    }
+
+    document.getElementById('saveScore').addEventListener('click', ()=>{
       const id = els.selPlayer.value;
-      const r = Math.max(1, Math.min(ROUNDS, Number(els.selRound.value)||1)) - 1;
-      const v = asNum(els.score.value);
+      const r  = roundIndexFromSelect();
+      const v  = asNum(els.score.value);
       if(!id || !players.find(p=>p.id===id)){ toast('اختر لاعبًا'); return; }
       if(v===null){ toast('اكتب درجة صحيحة'); return; }
       const p = players.find(p=>p.id===id);
@@ -255,7 +264,12 @@
       els.score.value = '';
     });
 
-    els.clearMine.addEventListener('click', ()=>{
+    // حفظ بالـ Enter كمان
+    els.score.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') document.getElementById('saveScore').click();
+    });
+
+    document.getElementById('clearMine').addEventListener('click', ()=>{
       const id = els.selPlayer.value;
       const p = players.find(p=>p.id===id);
       if(!p){ toast('اختر لاعبًا'); return; }
@@ -264,7 +278,7 @@
       toast('اتمسحت نتائج اللاعب');
     });
 
-    els.delPlayer.addEventListener('click', ()=>{
+    document.getElementById('deletePlayer').addEventListener('click', ()=>{
       const id = els.selPlayer.value;
       const p = players.find(p=>p.id===id);
       if(!p){ toast('اختر لاعبًا'); return; }
@@ -274,7 +288,7 @@
       toast('تم حذف اللاعب');
     });
 
-    els.calc.addEventListener('click', ()=>{
+    document.getElementById('calc').addEventListener('click', ()=>{
       drawTable();
       if(players.length){
         const totals = players.map(p=>({name:p.name, t:total(p.scores)})).sort((a,b)=>a.t-b.t);
@@ -287,11 +301,11 @@
       }
     });
 
-    els.export.addEventListener('click', ()=>{
+    document.getElementById('exportBtn').addEventListener('click', ()=>{
       const data = JSON.stringify(players);
       navigator.clipboard?.writeText(data).then(()=> toast('تم النسخ إلى الحافظة')).catch(()=>{});
     });
-    els.import.addEventListener('click', ()=>{
+    document.getElementById('importBtn').addEventListener('click', ()=>{
       const txt = prompt('الصق البيانات المصدّرة (JSON):');
       if(!txt) return;
       try{
@@ -303,6 +317,7 @@
       }catch{ toast('صيغة غير صحيحة'); }
     });
 
+    // تشغيل أولي
     loadLocal();
     buildHeader();
     rebuildRoundSelect();
