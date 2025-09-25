@@ -15,7 +15,7 @@
     .badge{background:#eef4ff;color:#234; padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid #dbe7ff}
     h1{font-size:22px;margin:6px 0}
     p{margin:0;color:var(--muted)}
-    input, select, button{font-size:16px}
+    input, button{font-size:16px}
     input[type=text], input[type=number]{padding:12px 14px;border-radius:12px;border:1px solid #d8e4f5;background:#fafcff;outline:none;transition:.2s}
     input[type=number]{text-align:left; direction:ltr;width:90px}
     .toolbar, .roombar, .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -120,11 +120,13 @@ const db = firebase.firestore();
 
 /* ===== حالة عامة ===== */
 const ROUNDS = 10;
+const DEBOUNCE_MS = 700;                  // ← تأخير الحفظ بعد توقف الكتابة
 let myUid = null;
 let roomRef = null;
 let roomUnsub = null, playersUnsub = null;
 let roomOwner = null;
 let currentRound = 1;
+const timers = new Map();                 // key = playerId:round
 
 // Auth 匿名
 firebase.auth().onAuthStateChanged(async u=>{
@@ -134,7 +136,7 @@ firebase.auth().onAuthStateChanged(async u=>{
 
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
 
-/* ===== بناء الهيدر: اللاعب | جولة1..10 | المجموع | الترتيب | حذف (للأدمن) ===== */
+/* ===== بناء الهيدر ===== */
 function buildHeader(isAdmin){
   const thead = document.getElementById('theadRow');
   thead.innerHTML='';
@@ -152,7 +154,7 @@ function total(arr){ return (arr||[]).reduce((s,v)=>s+(Number.isFinite(v)?v:0),0
 
 /* ===== رسم الجدول ===== */
 function drawTable(players, isAdmin){
-  // احسب ترتيب من الأقل للأكثر
+  // ترتيب من الأقل للأكثر
   const arr = players.map(p=>({...p, total: total(p.scores||[]) }));
   arr.sort((a,b)=> a.total - b.total);
   let rank=1;
@@ -177,20 +179,46 @@ function drawTable(players, isAdmin){
       const td=document.createElement('td');
       if(r === (currentRound-1)){
         const inp=document.createElement('input');
-        inp.type='number'; inp.inputMode='numeric'; inp.min='0';
+        inp.type='number'; inp.inputMode='numeric'; inp.pattern='[0-9]*'; inp.min='0';
         inp.value = (p.scores && p.scores[r]!=null) ? p.scores[r] : '';
         // تفعيل الإدخال فقط لصاحب السطر
         if(p.uid !== myUid) inp.disabled = true;
-        inp.addEventListener('input', async (e)=>{
+
+        // ---- الحفظ المؤجل (debounce) + Enter + blur ----
+        const key = p.id+':'+r;
+        const saveNow = async ()=>{
           try{
-            const v = e.target.value===''? null : Number(e.target.value);
+            const v = inp.value===''? null : Number(inp.value);
             const ns = Array.isArray(p.scores)? [...p.scores] : Array(ROUNDS).fill(null);
             ns[r] = v;
             await roomRef.collection('players').doc(p.id).update({
               scores: ns, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
           }catch(err){ console.error(err); toast('فشل حفظ الدرجة: '+err.message); }
+        };
+
+        inp.addEventListener('input', ()=>{
+          if(inp.disabled) return;
+          if(timers.has(key)) clearTimeout(timers.get(key));
+          timers.set(key, setTimeout(saveNow, DEBOUNCE_MS));  // يحفظ بعد ما تخلص كتابة
         });
+
+        inp.addEventListener('keydown', (e)=>{
+          if(inp.disabled) return;
+          if(e.key==='Enter'){
+            e.preventDefault();
+            if(timers.has(key)) clearTimeout(timers.get(key));
+            saveNow().then(()=> inp.blur());
+          }
+        });
+
+        inp.addEventListener('blur', ()=>{
+          if(inp.disabled) return;
+          if(timers.has(key)) { clearTimeout(timers.get(key)); timers.delete(key); }
+          saveNow();
+        });
+        // -----------------------------------------------
+
         td.appendChild(inp);
       }else{
         td.textContent = (p.scores && p.scores[r]!=null)? p.scores[r] : '—';
@@ -339,54 +367,30 @@ document.getElementById('clearAll').onclick = async ()=>{
 buildHeader(false);
 </script>
 
-<!-- ===== قواعد Firestore المقترحة (انسخها في Rules للتجربة) =====
+<!-- ===== Firestore Rules للتجربة (انسخها في Rules) =====
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // وثيقة الغرفة
     match /rooms/{room} {
       allow read: if true;
-
-      // إنشاء الغرفة لأي مستخدم مسجل (حتى لو مجهول)
       allow create: if request.auth != null;
-
-      // التحديث:
-      // - الأدمن فقط يقدر يغير currentRound أو يمسح/يعدل حاجات عامة
-      // - أي مستخدم يقدر يكتب leaderboard/lastCalcAt فقط (لحساب الترتيب)
       allow update: if request.auth != null && (
-        // الأدمن
         request.auth.uid == resource.data.owner ||
-        // غير الأدمن: لا يغير currentRound ولا owner
-        (
-          request.resource.data.diff(resource.data).changedKeys().hasOnly(['leaderboard','lastCalcAt'])
-        )
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['leaderboard','lastCalcAt'])
       );
-
       allow delete: if false;
     }
-
-    // لاعبو الغرفة
     match /rooms/{room}/players/{player} {
       allow read: if true;
-
-      // إنشاء لاعب: لازم uid == auth.uid
       allow create: if request.auth != null &&
                     request.resource.data.uid == request.auth.uid;
-
-      // تحديث:
-      // - صاحب اللاعب يقدر يحدّث درجاته فقط (scores, updatedAt)
-      // - الأدمن يقدر يحدّث/يحذف أي لاعب
       allow update: if request.auth != null && (
-        // الأدمن
         request.auth.uid == get(/databases/$(database)/documents/rooms/$(room)).data.owner ||
-        // صاحب اللاعب يعدّل درجاته فقط
         (
           request.auth.uid == resource.data.uid &&
           request.resource.data.diff(resource.data).changedKeys().hasOnly(['scores','updatedAt'])
         )
       );
-
-      // حذف: الأدمن فقط
       allow delete: if request.auth != null &&
         request.auth.uid == get(/databases/$(database)/documents/rooms/$(room)).data.owner;
     }
