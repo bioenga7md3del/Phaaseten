@@ -138,11 +138,26 @@
     function loadLocal(){ try{ const raw=localStorage.getItem(STORAGE_KEY); players = raw? JSON.parse(raw) : []; }catch{ players=[]; } }
 
     function buildHeader(){
-      while(els.thead.children.length>1) els.thead.removeChild(els.thead.children[1]);
-      for(let r=1;r<=ROUNDS;r++){
-        const th=document.createElement('th'); th.textContent='جولة '+r;
-        els.thead.insertBefore(th, els.thead.children[1]);
+      // اعادة بناء الهيدر بالترتيب الصحيح
+      els.thead.innerHTML = '';
+
+      const thName = document.createElement('th');
+      thName.textContent = 'اللاعب';
+      els.thead.appendChild(thName);
+
+      for (let r = 1; r <= ROUNDS; r++) {
+        const th = document.createElement('th');
+        th.textContent = 'جولة ' + r;
+        els.thead.appendChild(th);
       }
+
+      const thTotal = document.createElement('th');
+      thTotal.textContent = 'المجموع';
+      els.thead.appendChild(thTotal);
+
+      const thRank = document.createElement('th');
+      thRank.textContent = 'الترتيب';
+      els.thead.appendChild(thRank);
     }
 
     function drawTable(){
