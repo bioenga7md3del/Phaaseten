@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>تن فيز — أونلاين (إدارة جولة بواسطة الأدمن)</title>
+  <title>تن فيز — أونلاين (الأدمن يحدد الجولة)</title>
   <style>
     :root{ --bg:#f3f7ff; --ink:#0b2340; --muted:#6b7a90; --card:#fff; --shadow:0 10px 28px rgba(11,35,64,.12);
            --primary:#2563eb; --accent:#22c55e; --warn:#ef4444; --gold:#fbbf24; --silver:#c0c7d1; }
@@ -79,12 +79,13 @@
       </div>
     </div>
 
-    <!-- إضافة لاعب -->
+    <!-- إضافة لاعب + عشوائي -->
     <div class="card">
       <div class="row">
         <input id="playerName" type="text" placeholder="اسم اللاعب">
         <button id="addPlayer" class="good">+ أضف لاعب</button>
         <button id="calc" class="ghost">احسب الترتيب</button>
+        <button id="randomCard" class="ghost">🎲 إسيب عشوائي</button>
         <button id="clearAll" class="warn" style="display:none;">مسح كل اللاعبين (أدمن)</button>
       </div>
     </div>
@@ -120,15 +121,15 @@ const db = firebase.firestore();
 
 /* ===== حالة عامة ===== */
 const ROUNDS = 10;
-const DEBOUNCE_MS = 700;                  // ← تأخير الحفظ بعد توقف الكتابة
+const DEBOUNCE_MS = 700;
 let myUid = null;
 let roomRef = null;
 let roomUnsub = null, playersUnsub = null;
 let roomOwner = null;
 let currentRound = 1;
-const timers = new Map();                 // key = playerId:round
+const timers = new Map(); // key = playerId:round
 
-// Auth 匿名
+// Auth (مجهول)
 firebase.auth().onAuthStateChanged(async u=>{
   if(!u){ try{ await firebase.auth().signInAnonymously(); }catch(e){ console.error(e); } }
   else { myUid = u.uid; document.getElementById('roomStatus').textContent = 'جاهز'; }
@@ -174,17 +175,16 @@ function drawTable(players, isAdmin){
     // الاسم
     const tdName=document.createElement('td'); tdName.textContent=p.name||'—'; tr.appendChild(tdName);
 
-    // أعمدة الجولات: نعرض الكل، لكن خانة "الجولة الحالية" فقط يكون فيها input ومفعّل لو أنا صاحب السطر
+    // أعمدة الجولات: خانة "الجولة الحالية" فقط فيها input لصاحب السطر
     for(let r=0;r<ROUNDS;r++){
       const td=document.createElement('td');
       if(r === (currentRound-1)){
         const inp=document.createElement('input');
         inp.type='number'; inp.inputMode='numeric'; inp.pattern='[0-9]*'; inp.min='0';
         inp.value = (p.scores && p.scores[r]!=null) ? p.scores[r] : '';
-        // تفعيل الإدخال فقط لصاحب السطر
         if(p.uid !== myUid) inp.disabled = true;
 
-        // ---- الحفظ المؤجل (debounce) + Enter + blur ----
+        // حفظ مؤجل + Enter + blur
         const key = p.id+':'+r;
         const saveNow = async ()=>{
           try{
@@ -200,7 +200,7 @@ function drawTable(players, isAdmin){
         inp.addEventListener('input', ()=>{
           if(inp.disabled) return;
           if(timers.has(key)) clearTimeout(timers.get(key));
-          timers.set(key, setTimeout(saveNow, DEBOUNCE_MS));  // يحفظ بعد ما تخلص كتابة
+          timers.set(key, setTimeout(saveNow, DEBOUNCE_MS));
         });
 
         inp.addEventListener('keydown', (e)=>{
@@ -217,7 +217,6 @@ function drawTable(players, isAdmin){
           if(timers.has(key)) { clearTimeout(timers.get(key)); timers.delete(key); }
           saveNow();
         });
-        // -----------------------------------------------
 
         td.appendChild(inp);
       }else{
@@ -237,7 +236,7 @@ function drawTable(players, isAdmin){
     if(p.total===worst) label='الكوز 🪣';
     tdRank.textContent=label; tr.appendChild(tdRank);
 
-    // حذف (للأدمن فقط)
+    // حذف (للأدمن)
     if(isAdmin){
       const tdDel=document.createElement('td');
       const btn=document.createElement('button'); btn.textContent='حذف'; btn.className='ghost';
@@ -259,7 +258,6 @@ function subscribeToRoom(code){
     roomOwner = data.owner || null;
     currentRound = Math.min(ROUNDS, Math.max(1, data.currentRound || 1));
 
-    // تحكم الأدمن
     const isAdmin = (myUid && myUid===roomOwner);
     document.getElementById('adminControls').style.display = isAdmin? 'block':'none';
     document.getElementById('viewerControls').style.display = isAdmin? 'none':'block';
@@ -317,7 +315,7 @@ document.getElementById('nextRound').onclick = async ()=>{
   try{ await roomRef.update({ currentRound:newR }); }catch(e){ toast('فشل تغيير الجولة'); }
 };
 
-/* ===== إضافة لاعب (أي حد يضيف نفسه فقط) ===== */
+/* ===== إضافة لاعب ===== */
 document.getElementById('addPlayer').onclick = async ()=>{
   if(!roomRef) return toast('ادخل غرفة أولًا');
   const name = (document.getElementById('playerName').value||'').trim();
@@ -332,7 +330,7 @@ document.getElementById('addPlayer').onclick = async ()=>{
   }catch(e){ console.error(e); toast('فشل إضافة اللاعب: '+e.message); }
 };
 
-/* ===== حساب الترتيب (أي حد) ===== */
+/* ===== حساب الترتيب ===== */
 document.getElementById('calc').onclick = async ()=>{
   if(!roomRef) return toast('ادخل غرفة أولًا');
   try{
@@ -363,11 +361,36 @@ document.getElementById('clearAll').onclick = async ()=>{
   }catch(e){ console.error(e); toast('فشل المسح: '+e.message); }
 };
 
-/* ===== بناء الهيدر الأولي (قبل الاتصال) ===== */
+/* ===== 🎲 زر إسيب عشوائي ===== */
+document.getElementById('randomCard').onclick = async ()=>{
+  if(!roomRef) return toast('ادخل غرفة أولًا');
+  try {
+    const snap = await roomRef.collection('players').get();
+    const arr = []; snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+    if(!arr.length) return toast('مافيش لاعبين في الغرفة');
+
+    // لاعب عشوائي + بطاقة عشوائية (1..10) — غير المدى لو حابب
+    const randomPlayer = arr[Math.floor(Math.random() * arr.length)];
+    const randomCard = Math.floor(Math.random() * 10) + 1;
+
+    toast(`🎲 اللاعب: ${randomPlayer.name} حصل على بطاقة رقم ${randomCard}`);
+
+    // حفظ آخر بطاقة عشوائية (اختياري)
+    await roomRef.collection('players').doc(randomPlayer.id).update({
+      lastRandomCard: randomCard,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.error(e);
+    toast('فشل توليد البطاقة: ' + e.message);
+  }
+};
+
+/* ===== بناء الهيدر الأولي ===== */
 buildHeader(false);
 </script>
 
-<!-- ===== Firestore Rules للتجربة (انسخها في Rules) =====
+<!-- ===== Firestore Rules (اختياري للتجربة) =====
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -388,7 +411,7 @@ service cloud.firestore {
         request.auth.uid == get(/databases/$(database)/documents/rooms/$(room)).data.owner ||
         (
           request.auth.uid == resource.data.uid &&
-          request.resource.data.diff(resource.data).changedKeys().hasOnly(['scores','updatedAt'])
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['scores','updatedAt','lastRandomCard'])
         )
       );
       allow delete: if request.auth != null &&
