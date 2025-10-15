@@ -42,6 +42,19 @@
       .roombar input{flex:1;max-width:none}
       .roombar button{flex:1}
     }
+
+    /* Modal SKIP */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.35);
+      display:none; align-items:center; justify-content:center; z-index:999;
+    }
+    .modal{
+      background:#fff; border-radius:16px; padding:20px; width:min(92vw,420px);
+      box-shadow:0 10px 32px rgba(0,0,0,.2); text-align:center;
+    }
+    .modal h3{margin:0 0 10px 0}
+    .modal p{margin:6px 0 16px 0; color:#334}
+    .modal .close-btn{background:#0b2340}
   </style>
   <!-- Firebase compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -62,16 +75,16 @@
     <div class="card">
       <div class="roombar">
         <input id="roomCode" placeholder="كود الغرفة">
-        <button id="createRoom" class="good">إنشاء غرفة</button>
-        <button id="joinRoom" class="ghost">دخول</button>
+        <button id="createRoom" type="button" class="good">إنشاء غرفة</button>
+        <button id="joinRoom" type="button" class="ghost">دخول</button>
         <div style="flex:1"></div>
         <span id="roomStatus" class="badge">غير متصل</span>
       </div>
       <!-- تحكم الجولة (يظهر للأدمن فقط) -->
       <div id="adminControls" style="margin-top:10px; display:none;">
         <span class="pill">الجولة الحالية: <b id="roundBadge">1 / 10</b></span>
-        <button id="prevRound" class="ghost">⟵ الجولة السابقة</button>
-        <button id="nextRound" class="ghost">الجولة التالية ⟶</button>
+        <button id="prevRound" type="button" class="ghost">⟵ الجولة السابقة</button>
+        <button id="nextRound" type="button" class="ghost">الجولة التالية ⟶</button>
       </div>
       <!-- للمشاركين (غير الأدمن) مجرد عرض -->
       <div id="viewerControls" style="margin-top:10px; display:none;">
@@ -83,10 +96,10 @@
     <div class="card">
       <div class="row">
         <input id="playerName" type="text" placeholder="اسم اللاعب">
-        <button id="addPlayer" class="good">+ أضف لاعب</button>
-        <button id="calc" class="ghost">احسب الترتيب</button>
-        <button id="randomCard" class="ghost">🎲 إسيب عشوائي</button>
-        <button id="clearAll" class="warn" style="display:none;">مسح كل اللاعبين (أدمن)</button>
+        <button id="addPlayer" type="button" class="good">+ أضف لاعب</button>
+        <button id="calc" type="button" class="ghost">احسب الترتيب</button>
+        <button id="randomCard" type="button" class="ghost">SKIP</button>
+        <button id="clearAll" type="button" class="warn" style="display:none;">مسح كل اللاعبين (أدمن)</button>
       </div>
     </div>
 
@@ -100,6 +113,16 @@
           <tbody id="playersBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal SKIP -->
+  <div id="skipBackdrop" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3>🎲 بطاقة SKIP</h3>
+      <p>اللاعب المختار:</p>
+      <h2 id="skipPlayerName" style="margin:0 0 14px 0; font-size:24px; color:#0b2340"></h2>
+      <button id="closeSkip" type="button" class="close-btn">إغلاق</button>
     </div>
   </div>
 
@@ -155,7 +178,6 @@ function total(arr){ return (arr||[]).reduce((s,v)=>s+(Number.isFinite(v)?v:0),0
 
 /* ===== رسم الجدول ===== */
 function drawTable(players, isAdmin){
-  // ترتيب من الأقل للأكثر
   const arr = players.map(p=>({...p, total: total(p.scores||[]) }));
   arr.sort((a,b)=> a.total - b.total);
   let rank=1;
@@ -239,8 +261,8 @@ function drawTable(players, isAdmin){
     // حذف (للأدمن)
     if(isAdmin){
       const tdDel=document.createElement('td');
-      const btn=document.createElement('button'); btn.textContent='حذف'; btn.className='ghost';
-      btn.onclick=async ()=>{ if(confirm('حذف اللاعب؟')){ await roomRef.collection('players').doc(p.id).delete(); } };
+      const btn=document.createElement('button'); btn.type='button'; btn.textContent='حذف'; btn.className='ghost';
+      btn.onclick=async (e)=>{ e.preventDefault(); if(confirm('حذف اللاعب؟')){ await roomRef.collection('players').doc(p.id).delete(); } };
       tdDel.appendChild(btn); tr.appendChild(tdDel);
     }
 
@@ -278,7 +300,8 @@ function subscribeToRoom(code){
 }
 
 /* ===== أزرار الغرفة ===== */
-document.getElementById('createRoom').onclick = async ()=>{
+document.getElementById('createRoom').onclick = async (e)=>{
+  e.preventDefault();
   const code = Math.random().toString(36).slice(2,8).toUpperCase();
   try{
     await db.collection('rooms').doc(code).set({
@@ -292,7 +315,8 @@ document.getElementById('createRoom').onclick = async ()=>{
   }catch(e){ console.error(e); toast('فشل إنشاء الغرفة: '+e.message); }
 };
 
-document.getElementById('joinRoom').onclick = async ()=>{
+document.getElementById('joinRoom').onclick = async (e)=>{
+  e.preventDefault();
   const code = (document.getElementById('roomCode').value||'').trim().toUpperCase();
   if(!code) return toast('اكتب كود الغرفة');
   try{
@@ -304,19 +328,22 @@ document.getElementById('joinRoom').onclick = async ()=>{
 };
 
 /* ===== التحكم في الجولة (أدمن فقط) ===== */
-document.getElementById('prevRound').onclick = async ()=>{
+document.getElementById('prevRound').onclick = async (e)=>{
+  e.preventDefault();
   if(myUid!==roomOwner) return;
   const newR = Math.max(1, currentRound-1);
   try{ await roomRef.update({ currentRound:newR }); }catch(e){ toast('فشل تغيير الجولة'); }
 };
-document.getElementById('nextRound').onclick = async ()=>{
+document.getElementById('nextRound').onclick = async (e)=>{
+  e.preventDefault();
   if(myUid!==roomOwner) return;
   const newR = Math.min(ROUNDS, currentRound+1);
   try{ await roomRef.update({ currentRound:newR }); }catch(e){ toast('فشل تغيير الجولة'); }
 };
 
 /* ===== إضافة لاعب ===== */
-document.getElementById('addPlayer').onclick = async ()=>{
+document.getElementById('addPlayer').onclick = async (e)=>{
+  e.preventDefault();
   if(!roomRef) return toast('ادخل غرفة أولًا');
   const name = (document.getElementById('playerName').value||'').trim();
   if(!name) return toast('اكتب اسم اللاعب');
@@ -331,7 +358,8 @@ document.getElementById('addPlayer').onclick = async ()=>{
 };
 
 /* ===== حساب الترتيب ===== */
-document.getElementById('calc').onclick = async ()=>{
+document.getElementById('calc').onclick = async (e)=>{
+  e.preventDefault();
   if(!roomRef) return toast('ادخل غرفة أولًا');
   try{
     const snap = await roomRef.collection('players').get();
@@ -348,7 +376,8 @@ document.getElementById('calc').onclick = async ()=>{
 };
 
 /* ===== مسح الكل (أدمن فقط) ===== */
-document.getElementById('clearAll').onclick = async ()=>{
+document.getElementById('clearAll').onclick = async (e)=>{
+  e.preventDefault();
   if(!roomRef) return;
   if(myUid!==roomOwner) return toast('مسح الكل للأدمن فقط');
   if(!confirm('مسح جميع اللاعبين؟')) return;
@@ -361,28 +390,46 @@ document.getElementById('clearAll').onclick = async ()=>{
   }catch(e){ console.error(e); toast('فشل المسح: '+e.message); }
 };
 
-/* ===== 🎲 زر إسيب عشوائي ===== */
-document.getElementById('randomCard').onclick = async ()=>{
+/* ===== 🎲 زر SKIP — مودال يعرض اسم اللاعب ===== */
+const skipBackdrop = document.getElementById('skipBackdrop');
+const skipNameEl   = document.getElementById('skipPlayerName');
+const closeSkipBtn = document.getElementById('closeSkip');
+
+function openSkipModal(name){
+  skipNameEl.textContent = name || '—';
+  skipBackdrop.style.display = 'flex';
+}
+function closeSkipModal(){
+  skipBackdrop.style.display = 'none';
+}
+
+skipBackdrop.addEventListener('click', (e)=>{
+  if(e.target === skipBackdrop) closeSkipModal(); // اغلاق بالضغط خارج الصندوق
+});
+closeSkipBtn.addEventListener('click', closeSkipModal);
+
+document.getElementById('randomCard').onclick = async (e)=>{
+  e.preventDefault();
   if(!roomRef) return toast('ادخل غرفة أولًا');
   try {
     const snap = await roomRef.collection('players').get();
     const arr = []; snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
     if(!arr.length) return toast('مافيش لاعبين في الغرفة');
 
-    // لاعب عشوائي + بطاقة عشوائية (1..10) — غير المدى لو حابب
+    // لاعب عشوائي
     const randomPlayer = arr[Math.floor(Math.random() * arr.length)];
-    const randomCard = Math.floor(Math.random() * 10) + 1;
 
-    toast(`🎲 اللاعب: ${randomPlayer.name} حصل على بطاقة رقم ${randomCard}`);
+    // عرض المودال باسم اللاعب
+    openSkipModal(randomPlayer.name);
 
-    // حفظ آخر بطاقة عشوائية (اختياري)
+    // حفظ آخر Skip (اختياري)
     await roomRef.collection('players').doc(randomPlayer.id).update({
-      lastRandomCard: randomCard,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      lastSkip: true,
+      lastSkipAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
     console.error(e);
-    toast('فشل توليد البطاقة: ' + e.message);
+    toast('فشل اختيار اللاعب: ' + e.message);
   }
 };
 
@@ -390,7 +437,7 @@ document.getElementById('randomCard').onclick = async ()=>{
 buildHeader(false);
 </script>
 
-<!-- ===== Firestore Rules (اختياري للتجربة) =====
+<!-- ===== Firestore Rules (للأمان) =====
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -411,7 +458,7 @@ service cloud.firestore {
         request.auth.uid == get(/databases/$(database)/documents/rooms/$(room)).data.owner ||
         (
           request.auth.uid == resource.data.uid &&
-          request.resource.data.diff(resource.data).changedKeys().hasOnly(['scores','updatedAt','lastRandomCard'])
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['scores','updatedAt','lastSkip','lastSkipAt'])
         )
       );
       allow delete: if request.auth != null &&
