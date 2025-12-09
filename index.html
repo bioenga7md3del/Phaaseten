@@ -15,6 +15,7 @@
     :root {
       --primary: #2563eb; --primary-light: #eff6ff;
       --accent: #10b981; --warn: #f43f5e; --gold: #f59e0b;
+      --whatsapp: #25D366; /* لون واتساب */
       --bg: #f1f5f9; --surface: #ffffff;
       --text: #0f172a; --border: #cbd5e1;
     }
@@ -34,21 +35,25 @@
 
     /* الهيدر */
     .header h1 { margin: 0; font-size: 24px; color: var(--primary); font-weight: 800; text-align: center; }
-    .status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .badge { background: #e2e8f0; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; }
-    .badge.active { background: #dcfce7; color: #166534; }
+    
+    /* شريط الحالة الجديد */
+    .status-bar { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .badge { background: #e2e8f0; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;}
+    .badge.active { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
     /* أزرار التحكم */
     .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
     button {
       flex: 1; padding: 12px; border: none; border-radius: 10px;
       font-family: inherit; font-weight: 700; cursor: pointer; transition: 0.2s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     }
     button:active { transform: scale(0.96); }
     .btn-blue { background: var(--primary); color: #fff; }
     .btn-green { background: var(--accent); color: #fff; }
     .btn-red { background: var(--warn); color: #fff; }
     .btn-ghost { background: var(--primary-light); color: var(--primary); }
+    .btn-wa { background: var(--whatsapp); color: #fff; width: 100%; margin-top: 5px; } /* زر واتساب */
     
     /* حقول الإدخال */
     input {
@@ -56,6 +61,9 @@
       font-family: inherit; font-size: 16px; outline: none; text-align: center;
     }
     input:focus { border-color: var(--primary); background: #fff; }
+    /* إخفاء أسهم الأرقام */
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
 
     /* ===== الجدول المهم (Sticky) ===== */
     .table-wrap { overflow-x: auto; border-radius: 12px; background: #fff; border: 1px solid var(--border); }
@@ -119,8 +127,20 @@
 
     <div class="card">
       <div class="status-bar">
-        <span id="roomStatus" class="badge">غير متصل</span>
-        <span id="viewerRound" class="badge active" style="display:none">الجولة 1</span>
+        <div id="roomStatusContainer" style="display:none; width:100%; text-align:center;">
+          <div class="badge active" onclick="copyLink()">
+            <span style="font-size:1.2em">كود: </span>
+            <span id="roomCodeDisplay" style="font-size:1.4em; letter-spacing:2px; font-family:monospace"></span>
+            <span style="font-size:1.2em">📋</span>
+          </div>
+          <div>
+             <button id="shareWaBtn" class="btn-wa" onclick="shareWhatsapp()">
+               <span>إرسال الرابط واتساب</span> 💬
+             </button>
+          </div>
+        </div>
+        
+        <span id="viewerRound" class="badge" style="display:none; background:#eff6ff; color:#1e40af">الجولة 1</span>
       </div>
 
       <div id="adminPanel" style="display:none">
@@ -131,8 +151,8 @@
         </div>
       </div>
 
-      <div style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-        <input id="roomCode" placeholder="كود الغرفة" style="grid-column: span 2">
+      <div id="loginForm" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:16px;">
+        <input id="roomCodeInput" type="number" pattern="[0-9]*" inputmode="numeric" placeholder="كود الغرفة (أرقام)" style="grid-column: span 2; font-size:18px; letter-spacing:1px;">
         <button id="createBtn" class="btn-green">إنشاء</button>
         <button id="joinBtn" class="btn-blue">دخول</button>
       </div>
@@ -194,7 +214,7 @@ let state = {
 };
 let roomRef = null;
 const ROUNDS = 10;
-const timers = new Map(); // للحفظ المؤقت
+const timers = new Map();
 
 // الدخول المجهول
 firebase.auth().onAuthStateChanged(async u=>{
@@ -208,25 +228,58 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'), 2000);
 }
 
+/* ===== دوال المشاركة والرابط الذكي (الجديد) ===== */
+function checkUrlForRoom() {
+  const params = new URLSearchParams(window.location.search);
+  const roomParam = params.get('room');
+  if(roomParam) {
+    document.getElementById('roomCodeInput').value = roomParam;
+    document.getElementById('roomCodeInput').style.borderColor = 'var(--accent)';
+    toast('✅ تم استدعاء الكود');
+  }
+}
+
+function updateUrl(code) {
+  const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + code;
+  window.history.pushState({path:newUrl},'',newUrl);
+}
+
+function shareWhatsapp() {
+  if(!state.roomCode) return;
+  const url = window.location.href;
+  const text = `يالا نلعب! 🏆\nادخل سجل نتيجتك هنا:\n${url}\n\nكود الغرفة: *${state.roomCode}*`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+function copyLink() {
+  const url = window.location.href;
+  navigator.clipboard.writeText(url).then(() => toast('تم نسخ الرابط!'));
+}
+
 /* ===== المحرك الرئيسي (Render Engine) ===== */
-// هذه الدالة ترسم كل شيء من جديد بناء على state
 function renderApp() {
   const isAdmin = (state.me && state.me === state.owner);
+  const inRoom = !!state.roomCode;
   
-  // 1. تحديث عناصر التحكم
+  // 1. تحديث ظهور عناصر الدخول والمشاركة
+  document.getElementById('loginForm').style.display = inRoom ? 'none' : 'grid';
+  document.getElementById('roomStatusContainer').style.display = inRoom ? 'block' : 'none';
+
+  // تحديث رابط المتصفح
+  if(inRoom) {
+      document.getElementById('roomCodeDisplay').textContent = state.roomCode;
+      updateUrl(state.roomCode);
+  }
+
+  // 2. تحديث عناصر التحكم
   document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('viewerRound').style.display = isAdmin ? 'none' : 'inline-flex';
+  document.getElementById('viewerRound').style.display = (!isAdmin && inRoom) ? 'inline-flex' : 'none';
   document.getElementById('clearBtn').style.display = isAdmin ? 'block' : 'none';
   
   document.getElementById('roundNum').textContent = state.round;
   document.getElementById('viewerRound').textContent = 'الجولة الحالية: ' + state.round;
-  
-  if(state.roomCode) {
-    document.getElementById('roomStatus').textContent = 'غرفة: ' + state.roomCode;
-    document.getElementById('roomStatus').classList.add('active');
-  }
 
-  // 2. بناء الهيدر (رأس الجدول)
+  // 3. بناء الهيدر (رأس الجدول)
   const thead = document.getElementById('tableHead');
   thead.innerHTML = '<th>اللاعب</th>';
   for(let i=1; i<=ROUNDS; i++) {
@@ -238,7 +291,7 @@ function renderApp() {
   thead.innerHTML += '<th>مجموع</th><th>#</th>';
   if(isAdmin) thead.innerHTML += '<th>×</th>';
 
-  // 3. تجهيز البيانات والترتيب
+  // 4. تجهيز البيانات والترتيب
   const data = state.players.map(p => {
     const sum = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0);
     return { ...p, sum };
@@ -249,12 +302,11 @@ function renderApp() {
   let rank = 1;
   const worstScore = data.length ? data[data.length-1].sum : -1;
   
-  // 4. رسم جسم الجدول
+  // 5. رسم جسم الجدول
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
 
   data.forEach((p, index) => {
-    // منطق الترتيب المكرر
     if(index > 0 && p.sum === data[index-1].sum) p.rank = data[index-1].rank;
     else p.rank = rank;
     rank++;
@@ -272,32 +324,26 @@ function renderApp() {
     for(let r=0; r<ROUNDS; r++) {
       const td = document.createElement('td');
       if(r === state.round - 1) {
-        // الخانة النشطة (الجولة الحالية)
         td.className = 'col-active';
         
-        // إنشاء Input
         const inp = document.createElement('input');
         inp.type = 'number'; inp.className = 'score-inp';
         inp.placeholder = '-';
-        // القيمة الحالية
         inp.value = (p.scores && p.scores[r] != null) ? p.scores[r] : '';
 
-        // الصلاحيات: أنا اللاعب؟ أو أنا الأدمن؟
         const canEdit = (p.uid === state.me) || isAdmin;
         if(!canEdit) inp.disabled = true;
 
-        // منطق الحفظ (Debounce)
         const key = `${p.id}-${r}`;
         inp.oninput = () => {
           if(timers.has(key)) clearTimeout(timers.get(key));
           timers.set(key, setTimeout(() => saveScore(p.id, r, inp.value), 600));
         };
-        inp.onkeydown = (e) => { if(e.key === 'Enter') inp.blur(); }; // الحفظ عند الضغط Enter سيحدث بفضل onblur أو المؤقت
-        inp.onblur = () => saveScore(p.id, r, inp.value); // ضمان الحفظ عند الخروج
+        inp.onkeydown = (e) => { if(e.key === 'Enter') inp.blur(); };
+        inp.onblur = () => saveScore(p.id, r, inp.value);
 
         td.appendChild(inp);
       } else {
-        // جولات سابقة أو قادمة (نص فقط)
         td.textContent = (p.scores && p.scores[r] != null) ? p.scores[r] : '';
         td.style.color = '#94a3b8';
       }
@@ -314,7 +360,7 @@ function renderApp() {
     else tdRank.innerHTML = `<span class="badge">${p.rank}</span>`;
     tr.appendChild(tdRank);
 
-    // حذف (للأدمن)
+    // حذف
     if(isAdmin) {
       const tdDel = document.createElement('td');
       tdDel.innerHTML = `<button onclick="deletePlayer('${p.id}')" style="background:#fee2e2; color:red; padding:4px 8px">×</button>`;
@@ -327,12 +373,10 @@ function renderApp() {
 
 /* ===== العمليات (Actions) ===== */
 
-// 1. حفظ الدرجة
+// 1. حفظ الدرجة (لم يتم التغيير كما طلبت)
 async function saveScore(pid, roundIdx, val) {
   if(!roomRef) return;
   const num = val === '' ? null : Number(val);
-  
-  // نحدث المصفوفة محلياً أولاً لجعل الاستجابة سريعة (Optimistic UI - اختياري) لكن سنعتمد على السيرفر هنا للضمان
   const player = state.players.find(p => p.id === pid);
   if(player) {
     const newScores = [...(player.scores || Array(ROUNDS).fill(null))];
@@ -343,35 +387,36 @@ async function saveScore(pid, roundIdx, val) {
   }
 }
 
-// 2. تغيير الجولة (للأدمن)
+// 2. تغيير الجولة
 async function changeRound(delta) {
   if(state.me !== state.owner) return;
   const newR = Math.min(ROUNDS, Math.max(1, state.round + delta));
   if(newR !== state.round) {
     await roomRef.update({ currentRound: newR });
-    // السكرول التلقائي للخانة الجديدة سيحدث بعد التحديث
   }
 }
 
 // 3. الاشتراك في الغرفة
 function subscribe(code) {
-  if(roomRef) { /* unsubscribe logic if needed */ } // للتبسيط سنفترض تحديث الصفحة
+  if(roomRef) {} 
   roomRef = db.collection('rooms').doc(code);
   state.roomCode = code;
 
-  // A. الاستماع للغرفة (الجولة + المالك)
   roomRef.onSnapshot(doc => {
-    if(!doc.exists) return toast('الغرفة غير موجودة');
+    if(!doc.exists) { 
+        // إعادة تعيين الحالة لو الغرفة غير موجودة
+        state.roomCode = null; roomRef = null;
+        renderApp();
+        return toast('الغرفة غير موجودة'); 
+    }
     const d = doc.data();
     state.owner = d.owner;
     
-    // فحص هل تغيرت الجولة؟
     const oldRound = state.round;
     state.round = d.currentRound || 1;
     
-    renderApp(); // 🚀 تحديث الواجهة فوراً
+    renderApp();
 
-    // إذا تغيرت الجولة، تحرك للعمود الجديد
     if(state.round !== oldRound) {
        setTimeout(() => {
          const active = document.querySelector('.col-active input');
@@ -380,31 +425,33 @@ function subscribe(code) {
     }
   });
 
-  // B. الاستماع للاعبين
   roomRef.collection('players').onSnapshot(snap => {
     state.players = [];
     snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
-    renderApp(); // 🚀 تحديث الواجهة عند أي تغيير في الدرجات أو الأسماء
+    renderApp();
   });
 }
 
 /* ===== أزرار الواجهة ===== */
+
+// زر الإنشاء (تعديل: توليد رقم عشوائي 6 خانات)
 document.getElementById('createBtn').onclick = async () => {
-  const code = Math.random().toString(36).slice(2,8).toUpperCase();
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // كود رقمي
   await db.collection('rooms').doc(code).set({
     owner: state.me, currentRound: 1, createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  document.getElementById('roomCode').value = code;
+  // لا نحتاج لوضع الكود في الانبوت لأن الواجهة ستتغير
   subscribe(code);
-  toast('تم إنشاء الغرفة');
+  toast('تم إنشاء الغرفة 🚀');
 };
 
+// زر الدخول
 document.getElementById('joinBtn').onclick = async () => {
-  const code = document.getElementById('roomCode').value.toUpperCase().trim();
+  const code = document.getElementById('roomCodeInput').value.trim(); // استخدام الايدي الجديد
   if(!code) return toast('اكتب الكود');
   const d = await db.collection('rooms').doc(code).get();
   if(d.exists) { subscribe(code); toast('تم الدخول'); }
-  else toast('غرفة غير موجودة');
+  else toast('الكود غلط!');
 };
 
 document.getElementById('addBtn').onclick = async () => {
@@ -432,8 +479,6 @@ async function clearAll() {
   }
 }
 function calcResult() {
-  // الترتيب محسوب تلقائياً في state.players بسبب renderApp
-  // لكن لعرض رسالة:
   const sorted = [...state.players].sort((a,b) => {
      const sA = (a.scores||[]).reduce((x,y)=>x+(y||0),0);
      const sB = (b.scores||[]).reduce((x,y)=>x+(y||0),0);
@@ -447,6 +492,9 @@ function randomSkip() {
   document.getElementById('modalName').textContent = r.name;
   document.getElementById('modal').style.display = 'flex';
 }
+
+// فحص الرابط عند الفتح
+window.onload = checkUrlForRoom;
 
 // تشغيل أولي
 renderApp();
