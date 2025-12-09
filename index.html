@@ -11,139 +11,99 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    /* ===== المتغيرات والتأسيس ===== */
+    /* ===== CSS الأساسي ===== */
     :root {
-      --primary: #2563eb; --primary-dark: #1e40af; --primary-light: #eff6ff;
+      --primary: #2563eb; --primary-light: #eff6ff;
       --accent: #10b981; --warn: #f43f5e; --gold: #f59e0b;
-      --bg: #f8fafc; --surface: #ffffff;
-      --text-main: #0f172a; --text-muted: #64748b;
-      --border: #e2e8f0;
-      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
-      --radius: 14px;
+      --bg: #f1f5f9; --surface: #ffffff;
+      --text: #0f172a; --border: #cbd5e1;
     }
-
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    
     body {
-      font-family: 'Cairo', sans-serif;
-      background-color: var(--bg);
-      color: var(--text-main);
-      margin: 0; padding: 0;
-      min-height: 100vh;
-      padding-bottom: 100px;
+      font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text);
+      margin: 0; padding: 16px; padding-bottom: 120px;
     }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-
-    /* ===== الهيدر والبطاقات ===== */
-    .header { text-align: center; margin-bottom: 24px; padding: 20px 0; }
-    .header h1 {
-      font-size: 28px; font-weight: 800; margin: 0;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .header p { color: var(--text-muted); margin: 6px 0 0; font-size: 14px; }
-
-    .card {
-      background: var(--surface);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-md);
-      padding: 20px;
-      margin-bottom: 20px;
-      border: 1px solid var(--border);
-    }
-
-    /* ===== عناصر التحكم ===== */
-    .controls-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px; align-items: center;
-    }
-
-    input[type=text], input[type=number] {
-      width: 100%; padding: 12px 16px; border-radius: 12px;
-      border: 2px solid var(--border);
-      font-family: inherit; font-size: 16px; font-weight: 600;
-      background: var(--bg); outline: none; transition: all 0.2s;
-    }
-    input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px var(--primary-light); }
-
-    button {
-      border: none; padding: 12px 20px; border-radius: 12px;
-      font-family: inherit; font-size: 15px; font-weight: 700;
-      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      transition: all 0.2s; user-select: none;
-    }
-    button:active { transform: scale(0.97); }
-
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-ghost { background: var(--primary-light); color: var(--primary-dark); }
-    .btn-success { background: var(--accent); color: #fff; }
-    .btn-danger { background: var(--warn); color: #fff; }
-
-    /* ===== شريط الغرفة ===== */
-    .room-header {
-      display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
-      margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
-    }
-    .badge {
-      display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 99px;
-      font-size: 13px; font-weight: 700; background: var(--bg); color: var(--text-muted);
-    }
-    .badge.active { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-
-    /* ===== الجدول (Sticky) ===== */
-    .table-container {
-      overflow-x: auto; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--surface); position: relative;
-    }
-    table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
-    th, td { padding: 12px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    th { background: #f1f5f9; color: var(--text-muted); font-size: 13px; font-weight: 700; }
-
-    /* تثبيت العمود الأول */
-    th:first-child, td:first-child {
-      position: sticky; right: 0; z-index: 10; background: var(--surface);
-      border-left: 2px solid var(--border); font-weight: 700; text-align: right; min-width: 110px; padding-right: 16px;
-    }
-    th:first-child { background: #f1f5f9; z-index: 20; }
+    .container { max-width: 1200px; margin: 0 auto; }
     
-    /* تنسيق الصفوف */
+    /* البطاقات */
+    .card {
+      background: var(--surface); border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      padding: 16px; margin-bottom: 16px; border: 1px solid var(--border);
+    }
+
+    /* الهيدر */
+    .header h1 { margin: 0; font-size: 24px; color: var(--primary); font-weight: 800; text-align: center; }
+    .status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .badge { background: #e2e8f0; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .badge.active { background: #dcfce7; color: #166534; }
+
+    /* أزرار التحكم */
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      font-family: inherit; font-weight: 700; cursor: pointer; transition: 0.2s;
+    }
+    button:active { transform: scale(0.96); }
+    .btn-blue { background: var(--primary); color: #fff; }
+    .btn-green { background: var(--accent); color: #fff; }
+    .btn-red { background: var(--warn); color: #fff; }
+    .btn-ghost { background: var(--primary-light); color: var(--primary); }
+    
+    /* حقول الإدخال */
+    input {
+      width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--border);
+      font-family: inherit; font-size: 16px; outline: none; text-align: center;
+    }
+    input:focus { border-color: var(--primary); background: #fff; }
+
+    /* ===== الجدول المهم (Sticky) ===== */
+    .table-wrap { overflow-x: auto; border-radius: 12px; background: #fff; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
+    
+    th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    th { background: #f8fafc; font-weight: 700; font-size: 14px; }
+    
+    /* تثبيت العمود الأول (الاسم) */
+    th:first-child, td:first-child {
+      position: sticky; right: 0; z-index: 10;
+      background: var(--surface); border-left: 2px solid #e2e8f0;
+      min-width: 100px; font-weight: 700;
+    }
+    th:first-child { z-index: 20; background: #f8fafc; }
+    
+    /* تمييز العمود النشط */
+    .col-active { background-color: #eff6ff !important; border-left: 1px dashed #bfdbfe; border-right: 1px dashed #bfdbfe; }
+    th.col-active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+
+    /* انبوت الدرجات */
+    .score-inp { width: 60px; padding: 6px; font-weight: 700; }
+    
+    /* الأوائل */
     .rank-1 td:first-child { border-right: 4px solid var(--gold); }
     .rank-last td:first-child { border-right: 4px solid var(--warn); }
-    
-    /* Inputs داخل الجدول */
-    .score-input {
-      width: 70px !important; padding: 8px !important; text-align: center !important;
-      background: #f8fafc !important;
-    }
-    .score-input:focus { background: #fff !important; border-color: var(--primary) !important; transform: scale(1.1); }
-    .current-round-col { background: #eff6ff !important; }
 
-    /* ===== Modal & Toast ===== */
-    .modal-backdrop {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
-      z-index: 1000; display: none; align-items: center; justify-content: center;
+    /* تحكم الأدمن بالجولات */
+    .round-control {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      background: #f8fafc; padding: 8px; border-radius: 12px; margin-top: 10px;
     }
-    .modal {
-      background: var(--surface); width: 90%; max-width: 400px; padding: 32px 24px;
-      border-radius: 24px; text-align: center; box-shadow: var(--shadow-md);
-    }
+    .round-txt { font-size: 18px; font-weight: 800; color: var(--primary); }
+
+    /* Toast & Modal */
     .toast {
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
-      background: #1e293b; color: #fff; padding: 12px 24px; border-radius: 99px;
-      font-weight: 600; z-index: 2000; opacity: 0; transition: all 0.3s;
+      background: #1e293b; color: #fff; padding: 10px 20px; border-radius: 50px;
+      opacity: 0; transition: 0.3s; z-index: 999; pointer-events: none;
     }
     .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-
-    @media (max-width: 640px) {
-      .header h1 { font-size: 22px; }
-      .controls-grid { grid-template-columns: 1fr 1fr; }
-      #roomCode, #playerName { grid-column: span 2; }
+    
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000;
+      display: none; justify-content: center; align-items: center; backdrop-filter: blur(4px);
     }
+    .modal { background: #fff; padding: 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 350px; }
+
   </style>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -154,331 +114,342 @@
 
   <div class="container">
     <div class="header">
-      <h1>🏆 تن فيز — أونلاين</h1>
-      <p>الأدمن يتحكم بالجولات | الحفظ تلقائي</p>
+      <h1>🏆 تن فيز</h1>
     </div>
 
     <div class="card">
-      <div class="room-header">
-        <div id="roomStatus" class="badge">غير متصل</div>
-        
-        <div id="adminControls" style="display:none; width: 100%;">
-          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); padding:8px; border-radius:12px; margin-top:10px;">
-            <button id="prevRound" type="button" class="btn-ghost" style="padding:8px 12px">❮ السابق</button>
-            <span style="font-weight:bold; color:var(--primary)">جولة <span id="roundBadge" style="font-size:1.4em">1</span></span>
-            <button id="nextRound" type="button" class="btn-ghost" style="padding:8px 12px">التالي ❯</button>
-          </div>
-        </div>
-        
-        <div id="viewerControls" style="display:none; width: 100%; text-align:center; margin-top:10px;">
-          <span class="badge active" style="font-size:14px">الجولة الحالية: <b id="roundBadgeView" style="margin:0 4px">1</b></span>
+      <div class="status-bar">
+        <span id="roomStatus" class="badge">غير متصل</span>
+        <span id="viewerRound" class="badge active" style="display:none">الجولة 1</span>
+      </div>
+
+      <div id="adminPanel" style="display:none">
+        <div class="round-control">
+          <button onclick="changeRound(-1)" class="btn-ghost">❮</button>
+          <span class="round-txt">جولة <span id="roundNum">1</span></span>
+          <button onclick="changeRound(1)" class="btn-ghost">❯</button>
         </div>
       </div>
 
-      <div class="controls-grid">
-        <input id="roomCode" type="text" placeholder="كود الغرفة">
-        <button id="createRoom" type="button" class="btn-success">إنشاء جديد</button>
-        <button id="joinRoom" type="button" class="btn-primary">دخول</button>
+      <div style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <input id="roomCode" placeholder="كود الغرفة" style="grid-column: span 2">
+        <button id="createBtn" class="btn-green">إنشاء</button>
+        <button id="joinBtn" class="btn-blue">دخول</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="controls-grid" style="margin-bottom: 20px;">
-        <input id="playerName" type="text" placeholder="اسم اللاعب...">
-        <button id="addPlayer" type="button" class="btn-primary">＋ إضافة</button>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <input id="pName" placeholder="اسم اللاعب">
+        <button id="addBtn" class="btn-blue" style="flex:0 0 80px">＋</button>
       </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button id="calc" type="button" class="btn-ghost" style="flex:1">📊 الترتيب</button>
-        <button id="randomCard" type="button" class="btn-ghost" style="flex:1">🎲 SKIP</button>
-        <button id="clearAll" type="button" class="btn-danger" style="display:none; flex:1">🗑️ مسح الكل</button>
+      <div class="btn-group">
+        <button onclick="calcResult()" class="btn-ghost">📊 النتيجة</button>
+        <button onclick="randomSkip()" class="btn-ghost">🎲 SKIP</button>
+        <button id="clearBtn" onclick="clearAll()" class="btn-red" style="display:none">🗑️ مسح الكل</button>
       </div>
     </div>
 
-    <div class="card" style="padding:0; overflow:hidden; border:none; background:transparent; box-shadow:none;">
-      <div class="table-container">
-        <table id="playersTable">
-          <thead><tr id="theadRow"></tr></thead>
-          <tbody id="playersBody"></tbody>
+    <div class="card" style="padding:0; overflow:hidden; border:0;">
+      <div class="table-wrap">
+        <table id="mainTable">
+          <thead><tr id="tableHead"></tr></thead>
+          <tbody id="tableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <div id="skipBackdrop" class="modal-backdrop">
+  <div id="modal" class="modal-overlay">
     <div class="modal">
-      <div style="font-size:48px; margin-bottom:10px;">🎲</div>
-      <h3 style="margin:0; color:var(--text-muted)">صاحب بطاقة SKIP</h3>
-      <h2 id="skipPlayerName" style="margin:16px 0; font-size:32px; color:var(--primary); font-weight:800"></h2>
-      <button id="closeSkip" type="button" class="btn-primary" style="width:100%">إغلاق</button>
+      <div style="font-size:50px">🎲</div>
+      <h3>صاحب السكيب</h3>
+      <h2 id="modalName" style="color:var(--primary); font-size:30px"></h2>
+      <button onclick="document.getElementById('modal').style.display='none'" class="btn-blue" style="width:100%">إغلاق</button>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
 
 <script>
-/* ===== Firebase Config ===== */
+/* ===== إعدادات Firebase ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
   authDomain: "phaseten-435bf.firebaseapp.com",
   projectId: "phaseten-435bf",
   storageBucket: "phaseten-435bf.firebasestorage.app",
   messagingSenderId: "780298483879",
-  appId: "1:780298483879:web:6b6627e673d4808e098382",
-  measurementId: "G-58E5DVZHZ6"
+  appId: "1:780298483879:web:6b6627e673d4808e098382"
 };
 try{ firebase.initializeApp(firebaseConfig); }catch(e){}
 const db = firebase.firestore();
 
-/* ===== State & Logic ===== */
-const ROUNDS = 10;
-const DEBOUNCE_MS = 600;
-let myUid = null;
+/* ===== حالة التطبيق (Global State) ===== */
+let state = {
+  round: 1,
+  players: [],
+  owner: null,
+  me: null,
+  roomCode: null
+};
 let roomRef = null;
-let roomUnsub = null, playersUnsub = null;
-let roomOwner = null;
-let currentRound = 1;
-let localPlayersData = []; // تخزين اللاعبين لتحديث الواجهة عند تغيير الجولة
-const timers = new Map();
+const ROUNDS = 10;
+const timers = new Map(); // للحفظ المؤقت
 
-// Auth
+// الدخول المجهول
 firebase.auth().onAuthStateChanged(async u=>{
-  if(!u){ try{ await firebase.auth().signInAnonymously(); }catch(e){} }
-  else { myUid = u.uid; }
+  if(!u) await firebase.auth().signInAnonymously();
+  else state.me = u.uid;
 });
 
-function toast(m){ 
-  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); 
-  setTimeout(()=>t.classList.remove('show'), 2500); 
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2000);
 }
 
-/* ===== UI Building ===== */
-function buildHeader(isAdmin){
-  const thead = document.getElementById('theadRow'); thead.innerHTML='';
+/* ===== المحرك الرئيسي (Render Engine) ===== */
+// هذه الدالة ترسم كل شيء من جديد بناء على state
+function renderApp() {
+  const isAdmin = (state.me && state.me === state.owner);
   
-  const thName = document.createElement('th'); thName.textContent='اللاعب'; thead.appendChild(thName);
+  // 1. تحديث عناصر التحكم
+  document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('viewerRound').style.display = isAdmin ? 'none' : 'inline-flex';
+  document.getElementById('clearBtn').style.display = isAdmin ? 'block' : 'none';
+  
+  document.getElementById('roundNum').textContent = state.round;
+  document.getElementById('viewerRound').textContent = 'الجولة الحالية: ' + state.round;
+  
+  if(state.roomCode) {
+    document.getElementById('roomStatus').textContent = 'غرفة: ' + state.roomCode;
+    document.getElementById('roomStatus').classList.add('active');
+  }
 
-  for(let i=1; i<=ROUNDS; i++){
-    const th = document.createElement('th'); th.textContent = i;
-    if(i === currentRound) {
-        th.style.color = 'var(--primary)';
-        th.style.borderBottom = '3px solid var(--primary)';
-    }
+  // 2. بناء الهيدر (رأس الجدول)
+  const thead = document.getElementById('tableHead');
+  thead.innerHTML = '<th>اللاعب</th>';
+  for(let i=1; i<=ROUNDS; i++) {
+    const th = document.createElement('th');
+    th.textContent = i;
+    if(i === state.round) th.className = 'col-active';
     thead.appendChild(th);
   }
+  thead.innerHTML += '<th>مجموع</th><th>#</th>';
+  if(isAdmin) thead.innerHTML += '<th>×</th>';
 
-  const thTotal = document.createElement('th'); thTotal.textContent='المجموع'; thead.appendChild(thTotal);
-  const thRank = document.createElement('th'); thRank.textContent='المركز'; thead.appendChild(thRank);
+  // 3. تجهيز البيانات والترتيب
+  const data = state.players.map(p => {
+    const sum = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0);
+    return { ...p, sum };
+  });
+  data.sort((a,b) => a.sum - b.sum);
+
+  // حساب الترتيب
+  let rank = 1;
+  const worstScore = data.length ? data[data.length-1].sum : -1;
   
-  if(isAdmin){ 
-    const thDel = document.createElement('th'); thDel.textContent='حذف'; thead.appendChild(thDel); 
-  }
-}
+  // 4. رسم جسم الجدول
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
 
-function total(arr){ return (arr||[]).reduce((s,v)=>s+(Number.isFinite(v)?v:0),0); }
-
-/* ===== رسم الجدول (المنطقة المهمة) ===== */
-function drawTable(players, isAdmin){
-  const arr = players.map(p=>({...p, total: total(p.scores||[]) }));
-  arr.sort((a,b)=> a.total - b.total);
-  
-  let rank=1;
-  for(let i=0;i<arr.length;i++){
-    if(i>0 && arr[i].total===arr[i-1].total) arr[i].rank=arr[i-1].rank; else arr[i].rank=rank;
+  data.forEach((p, index) => {
+    // منطق الترتيب المكرر
+    if(index > 0 && p.sum === data[index-1].sum) p.rank = data[index-1].rank;
+    else p.rank = rank;
     rank++;
-  }
-  const worst = arr.length? arr[arr.length-1].total : null;
-  const body = document.getElementById('playersBody'); body.innerHTML='';
-  
-  arr.forEach(p=>{
-    const tr=document.createElement('tr');
-    if(p.rank===1) tr.classList.add('rank-1');
-    if(p.total===worst && arr.length > 1) tr.classList.add('rank-last');
 
-    // 1. الاسم
-    const tdName=document.createElement('td'); 
-    tdName.textContent=p.name||'—'; 
-    if(p.rank===1) tdName.innerHTML += ' <span style="color:var(--gold)">👑</span>';
-    tr.appendChild(tdName);
+    const tr = document.createElement('tr');
+    if(p.rank === 1) tr.className = 'rank-1';
+    if(p.sum === worstScore && data.length > 1) tr.className = 'rank-last';
 
-    // 2. الجولات
-    for(let r=0;r<ROUNDS;r++){
-      const td=document.createElement('td');
-      if(r === (currentRound - 1)) td.classList.add('current-round-col');
+    // الاسم
+    let nameHtml = p.name;
+    if(p.rank === 1) nameHtml += ' <span style="color:var(--gold)">👑</span>';
+    const tdName = document.createElement('td'); tdName.innerHTML = nameHtml; tr.appendChild(tdName);
 
-      if(r === (currentRound-1)){
-        const inp=document.createElement('input');
-        inp.className = 'score-input';
-        inp.type='number'; inp.inputMode='numeric'; inp.pattern='[0-9]*'; 
-        inp.value = (p.scores && p.scores[r]!=null) ? p.scores[r] : '';
+    // الجولات
+    for(let r=0; r<ROUNDS; r++) {
+      const td = document.createElement('td');
+      if(r === state.round - 1) {
+        // الخانة النشطة (الجولة الحالية)
+        td.className = 'col-active';
         
-        // 🔥 الشرط الجديد: السماح بالتعديل إذا كان المستخدم هو اللاعب نفسه OR الأدمن
-        const isMe = (p.uid === myUid);
-        if(!isMe && !isAdmin) {
-            inp.disabled = true;
-            inp.style.opacity = '0.4';
-        }
+        // إنشاء Input
+        const inp = document.createElement('input');
+        inp.type = 'number'; inp.className = 'score-inp';
+        inp.placeholder = '-';
+        // القيمة الحالية
+        inp.value = (p.scores && p.scores[r] != null) ? p.scores[r] : '';
 
-        // الحفظ
-        const key = p.id+':'+r;
-        const saveNow = async ()=>{
-          try{
-            const v = inp.value===''? null : Number(inp.value);
-            const ns = Array.isArray(p.scores)? [...p.scores] : Array(ROUNDS).fill(null);
-            ns[r] = v;
-            await roomRef.collection('players').doc(p.id).update({
-              scores: ns, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            inp.style.borderColor = 'var(--accent)'; setTimeout(()=> inp.style.borderColor = '', 1000);
-          }catch(err){ console.error(err); }
-        };
+        // الصلاحيات: أنا اللاعب؟ أو أنا الأدمن؟
+        const canEdit = (p.uid === state.me) || isAdmin;
+        if(!canEdit) inp.disabled = true;
 
-        inp.addEventListener('input', ()=>{
-          if(inp.disabled) return;
+        // منطق الحفظ (Debounce)
+        const key = `${p.id}-${r}`;
+        inp.oninput = () => {
           if(timers.has(key)) clearTimeout(timers.get(key));
-          timers.set(key, setTimeout(saveNow, DEBOUNCE_MS));
-        });
-        inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); }});
-        inp.addEventListener('blur', ()=>{ if(timers.has(key)){ clearTimeout(timers.get(key)); timers.delete(key); saveNow(); }});
+          timers.set(key, setTimeout(() => saveScore(p.id, r, inp.value), 600));
+        };
+        inp.onkeydown = (e) => { if(e.key === 'Enter') inp.blur(); }; // الحفظ عند الضغط Enter سيحدث بفضل onblur أو المؤقت
+        inp.onblur = () => saveScore(p.id, r, inp.value); // ضمان الحفظ عند الخروج
 
         td.appendChild(inp);
       } else {
-        td.textContent = (p.scores && p.scores[r]!=null)? p.scores[r] : '';
+        // جولات سابقة أو قادمة (نص فقط)
+        td.textContent = (p.scores && p.scores[r] != null) ? p.scores[r] : '';
         td.style.color = '#94a3b8';
       }
       tr.appendChild(td);
     }
 
-    // 3. المجموع والترتيب
-    const tdTotal=document.createElement('td'); tdTotal.style.fontWeight='bold'; tdTotal.textContent=total(p.scores||[]); tr.appendChild(tdTotal);
-    const tdRank=document.createElement('td');
-    tdRank.innerHTML = (p.total===worst && arr.length > 1) ? `<span class="badge" style="background:#ffe4e6; color:#be123c">💩</span>` : `<span class="badge">${p.rank}</span>`;
+    // المجموع
+    const tdSum = document.createElement('td'); 
+    tdSum.style.fontWeight='bold'; tdSum.textContent = p.sum; tr.appendChild(tdSum);
+
+    // الترتيب
+    const tdRank = document.createElement('td');
+    if(p.sum === worstScore && data.length > 1) tdRank.innerHTML = '<span class="badge" style="background:#fee2e2; color:#ef4444">💩</span>';
+    else tdRank.innerHTML = `<span class="badge">${p.rank}</span>`;
     tr.appendChild(tdRank);
 
-    // 4. حذف (أدمن فقط)
-    if(isAdmin){
-      const tdDel=document.createElement('td');
-      const btn=document.createElement('button'); btn.textContent='×'; 
-      btn.style.cssText = 'padding:4px 8px; background:#fee2e2; color:#ef4444; border-radius:6px;';
-      btn.onclick=async ()=>{ if(confirm('حذف اللاعب؟')) await roomRef.collection('players').doc(p.id).delete(); };
-      tdDel.appendChild(btn); tr.appendChild(tdDel);
+    // حذف (للأدمن)
+    if(isAdmin) {
+      const tdDel = document.createElement('td');
+      tdDel.innerHTML = `<button onclick="deletePlayer('${p.id}')" style="background:#fee2e2; color:red; padding:4px 8px">×</button>`;
+      tr.appendChild(tdDel);
     }
-    body.appendChild(tr);
+
+    tbody.appendChild(tr);
   });
 }
 
-/* ===== Room Subscription ===== */
-function subscribeToRoom(code){
-  if(roomUnsub) roomUnsub(); if(playersUnsub) playersUnsub();
-  roomRef = db.collection('rooms').doc(code);
+/* ===== العمليات (Actions) ===== */
 
-  // 1. مراقبة بيانات الغرفة (الجولة)
-  roomUnsub = roomRef.onSnapshot(doc=>{
-    const data = doc.data() || {};
-    if(!doc.exists) { document.getElementById('roomStatus').textContent='انتهت'; return; }
-
-    roomOwner = data.owner || null;
-    currentRound = Math.min(ROUNDS, Math.max(1, data.currentRound || 1));
-
-    const isAdmin = (myUid && myUid===roomOwner);
-    document.getElementById('adminControls').style.display = isAdmin? 'block':'none';
-    document.getElementById('viewerControls').style.display = isAdmin? 'none':'block';
-    document.getElementById('clearAll').style.display = isAdmin? 'block':'none';
-    document.getElementById('roundBadge').textContent = currentRound;
-    document.getElementById('roundBadgeView').textContent = currentRound;
-    document.getElementById('roomStatus').textContent = 'غرفة: ' + code;
-    document.getElementById('roomStatus').classList.add('active');
-
-    buildHeader(isAdmin);
-
-    // 🔥 إعادة رسم الجدول فوراً عند تغير الجولة عند الجميع
-    if(localPlayersData.length > 0) {
-      drawTable(localPlayersData, isAdmin);
-      // Auto-scroll للعمود الجديد
-      setTimeout(() => {
-        const activeInput = document.querySelector('.score-input:not([disabled])');
-        if(activeInput) activeInput.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-      }, 400);
-    }
-  });
-
-  // 2. مراقبة اللاعبين
-  playersUnsub = roomRef.collection('players').orderBy('createdAt').onSnapshot(snap=>{
-    localPlayersData = [];
-    snap.forEach(d=> localPlayersData.push({id:d.id, ...d.data()}));
-    drawTable(localPlayersData, myUid===roomOwner);
-  });
-}
-
-/* ===== Event Listeners ===== */
-document.getElementById('createRoom').onclick = async ()=>{
-  const code = Math.random().toString(36).slice(2,8).toUpperCase();
-  try{
-    await db.collection('rooms').doc(code).set({
-      owner: firebase.auth().currentUser?.uid, currentRound: 1, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    document.getElementById('roomCode').value = code;
-    subscribeToRoom(code);
-    toast('✅ تم إنشاء الغرفة');
-  }catch(e){ toast('❌ خطأ'); }
-};
-
-document.getElementById('joinRoom').onclick = async ()=>{
-  const code = (document.getElementById('roomCode').value||'').trim().toUpperCase();
-  if(!code) return toast('⚠️ اكتب الكود');
-  const doc = await db.collection('rooms').doc(code).get();
-  if(doc.exists) { subscribeToRoom(code); toast('✅ تم الدخول'); } else toast('🚫 غير موجودة');
-};
-
-document.getElementById('prevRound').onclick = ()=> changeRound(-1);
-document.getElementById('nextRound').onclick = ()=> changeRound(1);
-async function changeRound(delta){
-  if(myUid!==roomOwner) return;
-  const newR = Math.min(ROUNDS, Math.max(1, currentRound + delta));
-  try{ await roomRef.update({ currentRound:newR }); }catch(e){}
-}
-
-document.getElementById('addPlayer').onclick = async ()=>{
-  if(!roomRef) return toast('⚠️ ادخل غرفة');
-  const name = document.getElementById('playerName').value.trim();
-  if(!name) return toast('⚠️ اكتب الاسم');
-  try{
-    await roomRef.collection('players').add({
-      name, uid: myUid, scores:Array(ROUNDS).fill(null), createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    document.getElementById('playerName').value='';
-    toast('✅ أضيف اللاعب');
-  }catch(e){}
-};
-
-document.getElementById('calc').onclick = async ()=>{
+// 1. حفظ الدرجة
+async function saveScore(pid, roundIdx, val) {
   if(!roomRef) return;
-  const snap = await roomRef.collection('players').get();
-  const arr=[]; snap.forEach(d=>arr.push(d.data()));
-  const totals = arr.map(p=>({name:p.name, t:total(p.scores)})).sort((a,b)=>a.t-b.t);
-  if(totals.length) toast(`👑 المتصدر: ${totals[0].name}`);
+  const num = val === '' ? null : Number(val);
+  
+  // نحدث المصفوفة محلياً أولاً لجعل الاستجابة سريعة (Optimistic UI - اختياري) لكن سنعتمد على السيرفر هنا للضمان
+  const player = state.players.find(p => p.id === pid);
+  if(player) {
+    const newScores = [...(player.scores || Array(ROUNDS).fill(null))];
+    newScores[roundIdx] = num;
+    try {
+      await roomRef.collection('players').doc(pid).update({ scores: newScores });
+    } catch(e) { console.error(e); }
+  }
+}
+
+// 2. تغيير الجولة (للأدمن)
+async function changeRound(delta) {
+  if(state.me !== state.owner) return;
+  const newR = Math.min(ROUNDS, Math.max(1, state.round + delta));
+  if(newR !== state.round) {
+    await roomRef.update({ currentRound: newR });
+    // السكرول التلقائي للخانة الجديدة سيحدث بعد التحديث
+  }
+}
+
+// 3. الاشتراك في الغرفة
+function subscribe(code) {
+  if(roomRef) { /* unsubscribe logic if needed */ } // للتبسيط سنفترض تحديث الصفحة
+  roomRef = db.collection('rooms').doc(code);
+  state.roomCode = code;
+
+  // A. الاستماع للغرفة (الجولة + المالك)
+  roomRef.onSnapshot(doc => {
+    if(!doc.exists) return toast('الغرفة غير موجودة');
+    const d = doc.data();
+    state.owner = d.owner;
+    
+    // فحص هل تغيرت الجولة؟
+    const oldRound = state.round;
+    state.round = d.currentRound || 1;
+    
+    renderApp(); // 🚀 تحديث الواجهة فوراً
+
+    // إذا تغيرت الجولة، تحرك للعمود الجديد
+    if(state.round !== oldRound) {
+       setTimeout(() => {
+         const active = document.querySelector('.col-active input');
+         if(active) active.scrollIntoView({behavior:'smooth', inline:'center'});
+       }, 500);
+    }
+  });
+
+  // B. الاستماع للاعبين
+  roomRef.collection('players').onSnapshot(snap => {
+    state.players = [];
+    snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
+    renderApp(); // 🚀 تحديث الواجهة عند أي تغيير في الدرجات أو الأسماء
+  });
+}
+
+/* ===== أزرار الواجهة ===== */
+document.getElementById('createBtn').onclick = async () => {
+  const code = Math.random().toString(36).slice(2,8).toUpperCase();
+  await db.collection('rooms').doc(code).set({
+    owner: state.me, currentRound: 1, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('roomCode').value = code;
+  subscribe(code);
+  toast('تم إنشاء الغرفة');
 };
 
-const modal = document.getElementById('skipBackdrop');
-document.getElementById('closeSkip').onclick = ()=> modal.style.display='none';
-modal.onclick = (e)=> { if(e.target===modal) modal.style.display='none'; }
-document.getElementById('randomCard').onclick = async ()=>{
-  if(!roomRef) return toast('⚠️ ادخل غرفة');
-  const snap = await roomRef.collection('players').get();
-  const arr = []; snap.forEach(d=>arr.push(d.data()));
-  if(!arr.length) return toast('لا يوجد لاعبين');
-  document.getElementById('skipPlayerName').textContent = arr[Math.floor(Math.random()*arr.length)].name;
-  modal.style.display='flex';
+document.getElementById('joinBtn').onclick = async () => {
+  const code = document.getElementById('roomCode').value.toUpperCase().trim();
+  if(!code) return toast('اكتب الكود');
+  const d = await db.collection('rooms').doc(code).get();
+  if(d.exists) { subscribe(code); toast('تم الدخول'); }
+  else toast('غرفة غير موجودة');
 };
 
-document.getElementById('clearAll').onclick = async ()=>{
-  if(!confirm('مسح الجميع؟')) return;
-  const snap = await roomRef.collection('players').get();
-  const batch = db.batch(); snap.forEach(d=>batch.delete(d.ref));
-  await batch.commit();
-  toast('🗑️ تم المسح');
+document.getElementById('addBtn').onclick = async () => {
+  if(!roomRef) return toast('ادخل غرفة أولاً');
+  const n = document.getElementById('pName').value.trim();
+  if(!n) return toast('اكتب الاسم');
+  await roomRef.collection('players').add({
+    name: n, uid: state.me, scores: Array(ROUNDS).fill(null),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('pName').value = '';
 };
 
-buildHeader(false);
+// أدوات إضافية
+function deletePlayer(id) {
+  if(confirm('حذف هذا اللاعب؟')) roomRef.collection('players').doc(id).delete();
+}
+async function clearAll() {
+  if(confirm('هل أنت متأكد من مسح الجميع؟')) {
+    const snap = await roomRef.collection('players').get();
+    const batch = db.batch();
+    snap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    toast('تم المسح');
+  }
+}
+function calcResult() {
+  // الترتيب محسوب تلقائياً في state.players بسبب renderApp
+  // لكن لعرض رسالة:
+  const sorted = [...state.players].sort((a,b) => {
+     const sA = (a.scores||[]).reduce((x,y)=>x+(y||0),0);
+     const sB = (b.scores||[]).reduce((x,y)=>x+(y||0),0);
+     return sA - sB;
+  });
+  if(sorted.length) toast(`الأول: ${sorted[0].name}`);
+}
+function randomSkip() {
+  if(!state.players.length) return toast('لا يوجد لاعبين');
+  const r = state.players[Math.floor(Math.random()*state.players.length)];
+  document.getElementById('modalName').textContent = r.name;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+// تشغيل أولي
+renderApp();
 </script>
 </body>
 </html>
