@@ -15,6 +15,7 @@
     :root {
       --primary: #2563eb; --primary-light: #eff6ff;
       --accent: #10b981; --warn: #f43f5e; --gold: #f59e0b;
+      --whatsapp: #25D366;
       --bg: #f1f5f9; --surface: #ffffff;
       --text: #0f172a; --border: #cbd5e1;
     }
@@ -34,70 +35,70 @@
 
     /* الهيدر */
     .header h1 { margin: 0; font-size: 24px; color: var(--primary); font-weight: 800; text-align: center; }
-    .status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .badge { background: #e2e8f0; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; }
-    .badge.active { background: #dcfce7; color: #166534; }
+    .status-bar { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-bottom: 12px; }
+    
+    .badge { background: #e2e8f0; padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+    .badge.active { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    
+    /* زر النسخ والمشاركة */
+    .action-icon { cursor: pointer; opacity: 0.7; transition: .2s; font-size: 1.2em; }
+    .action-icon:hover { opacity: 1; transform: scale(1.1); }
 
     /* أزرار التحكم */
     .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
     button {
       flex: 1; padding: 12px; border: none; border-radius: 10px;
       font-family: inherit; font-weight: 700; cursor: pointer; transition: 0.2s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     }
     button:active { transform: scale(0.96); }
     .btn-blue { background: var(--primary); color: #fff; }
     .btn-green { background: var(--accent); color: #fff; }
     .btn-red { background: var(--warn); color: #fff; }
     .btn-ghost { background: var(--primary-light); color: var(--primary); }
+    .btn-wa { background: var(--whatsapp); color: #fff; grid-column: span 2; }
     
     /* حقول الإدخال */
     input {
       width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--border);
       font-family: inherit; font-size: 16px; outline: none; text-align: center;
+      transition: all 0.2s;
     }
-    input:focus { border-color: var(--primary); background: #fff; }
+    input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px var(--primary-light); }
+    /* إخفاء أسهم الأرقام */
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-    /* ===== الجدول المهم (Sticky) ===== */
+    /* ===== الجدول (Sticky) ===== */
     .table-wrap { overflow-x: auto; border-radius: 12px; background: #fff; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
     
     th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
     th { background: #f8fafc; font-weight: 700; font-size: 14px; }
     
-    /* تثبيت العمود الأول (الاسم) */
+    /* تثبيت العمود الأول */
     th:first-child, td:first-child {
       position: sticky; right: 0; z-index: 10;
       background: var(--surface); border-left: 2px solid #e2e8f0;
-      min-width: 100px; font-weight: 700;
+      min-width: 110px; font-weight: 700;
     }
     th:first-child { z-index: 20; background: #f8fafc; }
     
-    /* تمييز العمود النشط */
     .col-active { background-color: #eff6ff !important; border-left: 1px dashed #bfdbfe; border-right: 1px dashed #bfdbfe; }
     th.col-active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-
-    /* انبوت الدرجات */
-    .score-inp { width: 60px; padding: 6px; font-weight: 700; }
-    
-    /* الأوائل */
+    .score-inp { width: 60px; padding: 6px; font-weight: 700; background: #f8fafc; }
     .rank-1 td:first-child { border-right: 4px solid var(--gold); }
     .rank-last td:first-child { border-right: 4px solid var(--warn); }
 
-    /* تحكم الأدمن بالجولات */
-    .round-control {
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      background: #f8fafc; padding: 8px; border-radius: 12px; margin-top: 10px;
-    }
-    .round-txt { font-size: 18px; font-weight: 800; color: var(--primary); }
-
-    /* Toast & Modal */
+    /* Toast */
     .toast {
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
-      background: #1e293b; color: #fff; padding: 10px 20px; border-radius: 50px;
-      opacity: 0; transition: 0.3s; z-index: 999; pointer-events: none;
+      background: #0f172a; color: #fff; padding: 12px 24px; border-radius: 50px;
+      opacity: 0; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 2000;
+      font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
     }
     .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
     
+    /* Modal */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000;
       display: none; justify-content: center; align-items: center; backdrop-filter: blur(4px);
@@ -119,28 +120,40 @@
 
     <div class="card">
       <div class="status-bar">
-        <span id="roomStatus" class="badge">غير متصل</span>
-        <span id="viewerRound" class="badge active" style="display:none">الجولة 1</span>
+        <div id="roomStatusContainer" style="display:none; width:100%; text-align:center;">
+          <div class="badge active" onclick="copyLink()">
+            <span id="roomCodeDisplay" style="font-size:1.4em; letter-spacing:2px"></span>
+            <span class="action-icon" title="نسخ">📋</span>
+          </div>
+          <div style="margin-top:10px;">
+             <button id="shareWaBtn" class="btn-wa" onclick="shareWhatsapp()">
+               <span>إرسال دعوة واتساب</span> 💬
+             </button>
+          </div>
+        </div>
+        
+        <span id="viewerRound" class="badge" style="display:none; background:#eff6ff; color:#1e40af"></span>
       </div>
 
-      <div id="adminPanel" style="display:none">
-        <div class="round-control">
-          <button onclick="changeRound(-1)" class="btn-ghost">❮</button>
-          <span class="round-txt">جولة <span id="roundNum">1</span></span>
-          <button onclick="changeRound(1)" class="btn-ghost">❯</button>
+      <div id="adminPanel" style="display:none; margin-bottom:16px;">
+        <div style="display:flex; justify-content:center; gap:12px; align-items:center; background:#f8fafc; padding:10px; border-radius:12px;">
+          <button onclick="changeRound(-1)" class="btn-ghost" style="max-width:50px">❮</button>
+          <span style="font-weight:800; color:var(--primary); font-size:18px">جولة <span id="roundNum">1</span></span>
+          <button onclick="changeRound(1)" class="btn-ghost" style="max-width:50px">❯</button>
         </div>
       </div>
 
-      <div style="margin-top:16px; display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-        <input id="roomCode" placeholder="كود الغرفة" style="grid-column: span 2">
-        <button id="createBtn" class="btn-green">إنشاء</button>
+      <div id="loginForm" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <input id="roomCodeInput" type="number" pattern="[0-9]*" inputmode="numeric" placeholder="كود الغرفة" style="grid-column: span 2; font-size:20px; letter-spacing:2px;">
+        
+        <button id="createBtn" class="btn-green">إنشاء غرفة</button>
         <button id="joinBtn" class="btn-blue">دخول</button>
       </div>
     </div>
 
-    <div class="card">
+    <div id="gameControls" class="card" style="display:none;">
       <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <input id="pName" placeholder="اسم اللاعب">
+        <input id="pName" type="text" placeholder="اسمك إيه؟">
         <button id="addBtn" class="btn-blue" style="flex:0 0 80px">＋</button>
       </div>
       <div class="btn-group">
@@ -150,7 +163,7 @@
       </div>
     </div>
 
-    <div class="card" style="padding:0; overflow:hidden; border:0;">
+    <div id="tableCard" class="card" style="padding:0; overflow:hidden; border:0; display:none;">
       <div class="table-wrap">
         <table id="mainTable">
           <thead><tr id="tableHead"></tr></thead>
@@ -162,9 +175,9 @@
 
   <div id="modal" class="modal-overlay">
     <div class="modal">
-      <div style="font-size:50px">🎲</div>
-      <h3>صاحب السكيب</h3>
-      <h2 id="modalName" style="color:var(--primary); font-size:30px"></h2>
+      <div style="font-size:50px; margin-bottom:10px">🎲</div>
+      <h3 style="margin:0; color:#64748b">صاحب السكيب هو</h3>
+      <h2 id="modalName" style="color:var(--primary); font-size:32px; font-weight:800; margin:15px 0"></h2>
       <button onclick="document.getElementById('modal').style.display='none'" class="btn-blue" style="width:100%">إغلاق</button>
     </div>
   </div>
@@ -172,7 +185,7 @@
   <div id="toast" class="toast"></div>
 
 <script>
-/* ===== إعدادات Firebase ===== */
+/* ===== Firebase Config ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
   authDomain: "phaseten-435bf.firebaseapp.com",
@@ -184,19 +197,13 @@ const firebaseConfig = {
 try{ firebase.initializeApp(firebaseConfig); }catch(e){}
 const db = firebase.firestore();
 
-/* ===== حالة التطبيق (Global State) ===== */
-let state = {
-  round: 1,
-  players: [],
-  owner: null,
-  me: null,
-  roomCode: null
-};
+/* ===== State ===== */
+let state = { round: 1, players: [], owner: null, me: null, roomCode: null };
 let roomRef = null;
 const ROUNDS = 10;
-const timers = new Map(); // للحفظ المؤقت
+const timers = new Map();
 
-// الدخول المجهول
+// Auth
 firebase.auth().onAuthStateChanged(async u=>{
   if(!u) await firebase.auth().signInAnonymously();
   else state.me = u.uid;
@@ -208,25 +215,66 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'), 2000);
 }
 
-/* ===== المحرك الرئيسي (Render Engine) ===== */
-// هذه الدالة ترسم كل شيء من جديد بناء على state
+/* ===== URL Helper (الرابط الذكي) ===== */
+function checkUrlForRoom() {
+  const params = new URLSearchParams(window.location.search);
+  const roomParam = params.get('room');
+  if(roomParam) {
+    document.getElementById('roomCodeInput').value = roomParam;
+    // تمييز الحقل بصرياً
+    document.getElementById('roomCodeInput').style.borderColor = 'var(--accent)';
+    toast('تم استدعاء كود الغرفة ✅');
+  }
+}
+
+function updateUrl(code) {
+  const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + code;
+  window.history.pushState({path:newUrl},'',newUrl);
+}
+
+function shareWhatsapp() {
+  if(!state.roomCode) return;
+  const url = window.location.href; // الرابط الحالي يحتوي الكود
+  const text = `يالا نلعب! 🏆\nادخل سجل نتيجتك هنا:\n${url}\n\nكود الغرفة: *${state.roomCode}*`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+function copyLink() {
+  const url = window.location.href;
+  navigator.clipboard.writeText(url).then(() => toast('تم نسخ الرابط!'));
+}
+
+/* ===== Render Engine ===== */
 function renderApp() {
   const isAdmin = (state.me && state.me === state.owner);
-  
-  // 1. تحديث عناصر التحكم
-  document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('viewerRound').style.display = isAdmin ? 'none' : 'inline-flex';
-  document.getElementById('clearBtn').style.display = isAdmin ? 'block' : 'none';
-  
-  document.getElementById('roundNum').textContent = state.round;
-  document.getElementById('viewerRound').textContent = 'الجولة الحالية: ' + state.round;
-  
-  if(state.roomCode) {
-    document.getElementById('roomStatus').textContent = 'غرفة: ' + state.roomCode;
-    document.getElementById('roomStatus').classList.add('active');
+  const inRoom = !!state.roomCode;
+
+  // تبديل الواجهات
+  document.getElementById('loginForm').style.display = inRoom ? 'none' : 'grid';
+  document.getElementById('roomStatusContainer').style.display = inRoom ? 'block' : 'none';
+  document.getElementById('gameControls').style.display = inRoom ? 'block' : 'none';
+  document.getElementById('tableCard').style.display = inRoom ? 'block' : 'none';
+
+  if(inRoom) {
+    document.getElementById('roomCodeDisplay').textContent = state.roomCode;
+    updateUrl(state.roomCode); // تحديث الرابط في المتصفح
   }
 
-  // 2. بناء الهيدر (رأس الجدول)
+  // تحكم الأدمن
+  document.getElementById('adminPanel').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('clearBtn').style.display = isAdmin ? 'block' : 'none';
+  
+  // نصوص الجولات
+  document.getElementById('roundNum').textContent = state.round;
+  const vRound = document.getElementById('viewerRound');
+  if(!isAdmin && inRoom) {
+      vRound.style.display = 'inline-flex';
+      vRound.textContent = 'الجولة الحالية: ' + state.round;
+  } else {
+      vRound.style.display = 'none';
+  }
+
+  // بناء الجدول
   const thead = document.getElementById('tableHead');
   thead.innerHTML = '<th>اللاعب</th>';
   for(let i=1; i<=ROUNDS; i++) {
@@ -238,140 +286,99 @@ function renderApp() {
   thead.innerHTML += '<th>مجموع</th><th>#</th>';
   if(isAdmin) thead.innerHTML += '<th>×</th>';
 
-  // 3. تجهيز البيانات والترتيب
-  const data = state.players.map(p => {
-    const sum = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0);
-    return { ...p, sum };
-  });
+  // معالجة البيانات
+  const data = state.players.map(p => ({ ...p, sum: (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0) }));
   data.sort((a,b) => a.sum - b.sum);
-
-  // حساب الترتيب
   let rank = 1;
-  const worstScore = data.length ? data[data.length-1].sum : -1;
-  
-  // 4. رسم جسم الجدول
+  const worst = data.length ? data[data.length-1].sum : -1;
+
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
 
-  data.forEach((p, index) => {
-    // منطق الترتيب المكرر
-    if(index > 0 && p.sum === data[index-1].sum) p.rank = data[index-1].rank;
-    else p.rank = rank;
+  data.forEach((p, idx) => {
+    if(idx > 0 && p.sum === data[idx-1].sum) p.rank = data[idx-1].rank; else p.rank = rank;
     rank++;
 
     const tr = document.createElement('tr');
     if(p.rank === 1) tr.className = 'rank-1';
-    if(p.sum === worstScore && data.length > 1) tr.className = 'rank-last';
+    if(p.sum === worst && data.length > 1) tr.className = 'rank-last';
 
     // الاسم
-    let nameHtml = p.name;
-    if(p.rank === 1) nameHtml += ' <span style="color:var(--gold)">👑</span>';
-    const tdName = document.createElement('td'); tdName.innerHTML = nameHtml; tr.appendChild(tdName);
+    const tdName = document.createElement('td'); 
+    tdName.innerHTML = p.rank===1 ? `${p.name} <span style="color:#fbbf24">👑</span>` : p.name;
+    tr.appendChild(tdName);
 
-    // الجولات
+    // الدرجات
     for(let r=0; r<ROUNDS; r++) {
       const td = document.createElement('td');
       if(r === state.round - 1) {
-        // الخانة النشطة (الجولة الحالية)
         td.className = 'col-active';
-        
-        // إنشاء Input
         const inp = document.createElement('input');
-        inp.type = 'number'; inp.className = 'score-inp';
-        inp.placeholder = '-';
-        // القيمة الحالية
-        inp.value = (p.scores && p.scores[r] != null) ? p.scores[r] : '';
-
-        // الصلاحيات: أنا اللاعب؟ أو أنا الأدمن؟
+        inp.type = 'number'; inp.className = 'score-inp'; inp.placeholder='-';
+        inp.value = (p.scores && p.scores[r]!=null) ? p.scores[r] : '';
+        
         const canEdit = (p.uid === state.me) || isAdmin;
         if(!canEdit) inp.disabled = true;
 
-        // منطق الحفظ (Debounce)
         const key = `${p.id}-${r}`;
         inp.oninput = () => {
           if(timers.has(key)) clearTimeout(timers.get(key));
           timers.set(key, setTimeout(() => saveScore(p.id, r, inp.value), 600));
         };
-        inp.onkeydown = (e) => { if(e.key === 'Enter') inp.blur(); }; // الحفظ عند الضغط Enter سيحدث بفضل onblur أو المؤقت
-        inp.onblur = () => saveScore(p.id, r, inp.value); // ضمان الحفظ عند الخروج
-
+        // الحفظ عند الخروج
+        inp.onblur = () => saveScore(p.id, r, inp.value);
         td.appendChild(inp);
       } else {
-        // جولات سابقة أو قادمة (نص فقط)
-        td.textContent = (p.scores && p.scores[r] != null) ? p.scores[r] : '';
+        td.textContent = (p.scores && p.scores[r]!=null) ? p.scores[r] : '';
         td.style.color = '#94a3b8';
       }
       tr.appendChild(td);
     }
 
-    // المجموع
-    const tdSum = document.createElement('td'); 
-    tdSum.style.fontWeight='bold'; tdSum.textContent = p.sum; tr.appendChild(tdSum);
-
-    // الترتيب
-    const tdRank = document.createElement('td');
-    if(p.sum === worstScore && data.length > 1) tdRank.innerHTML = '<span class="badge" style="background:#fee2e2; color:#ef4444">💩</span>';
-    else tdRank.innerHTML = `<span class="badge">${p.rank}</span>`;
-    tr.appendChild(tdRank);
-
-    // حذف (للأدمن)
+    // المجموع والترتيب
+    tr.innerHTML += `<td style="font-weight:bold">${p.sum}</td>`;
+    tr.innerHTML += `<td>${(p.sum === worst && data.length > 1) ? '💩' : '<span class="badge">'+p.rank+'</span>'}</td>`;
+    
     if(isAdmin) {
-      const tdDel = document.createElement('td');
-      tdDel.innerHTML = `<button onclick="deletePlayer('${p.id}')" style="background:#fee2e2; color:red; padding:4px 8px">×</button>`;
-      tr.appendChild(tdDel);
+      tr.innerHTML += `<td><button onclick="deletePlayer('${p.id}')" style="background:#fee2e2;color:red;padding:4px 8px;font-size:12px">×</button></td>`;
     }
-
     tbody.appendChild(tr);
   });
 }
 
-/* ===== العمليات (Actions) ===== */
-
-// 1. حفظ الدرجة
-async function saveScore(pid, roundIdx, val) {
+/* ===== Actions ===== */
+async function saveScore(pid, rIdx, val) {
   if(!roomRef) return;
   const num = val === '' ? null : Number(val);
-  
-  // نحدث المصفوفة محلياً أولاً لجعل الاستجابة سريعة (Optimistic UI - اختياري) لكن سنعتمد على السيرفر هنا للضمان
   const player = state.players.find(p => p.id === pid);
   if(player) {
-    const newScores = [...(player.scores || Array(ROUNDS).fill(null))];
-    newScores[roundIdx] = num;
-    try {
-      await roomRef.collection('players').doc(pid).update({ scores: newScores });
-    } catch(e) { console.error(e); }
+    const scores = [...(player.scores || Array(ROUNDS).fill(null))];
+    scores[rIdx] = num;
+    try { await roomRef.collection('players').doc(pid).update({ scores }); } catch(e){}
   }
 }
 
-// 2. تغيير الجولة (للأدمن)
-async function changeRound(delta) {
+async function changeRound(d) {
   if(state.me !== state.owner) return;
-  const newR = Math.min(ROUNDS, Math.max(1, state.round + delta));
-  if(newR !== state.round) {
-    await roomRef.update({ currentRound: newR });
-    // السكرول التلقائي للخانة الجديدة سيحدث بعد التحديث
-  }
+  const newR = Math.min(ROUNDS, Math.max(1, state.round + d));
+  if(newR !== state.round) await roomRef.update({ currentRound: newR });
 }
 
-// 3. الاشتراك في الغرفة
 function subscribe(code) {
-  if(roomRef) { /* unsubscribe logic if needed */ } // للتبسيط سنفترض تحديث الصفحة
+  if(roomRef) return; // منع التكرار
   roomRef = db.collection('rooms').doc(code);
   state.roomCode = code;
 
-  // A. الاستماع للغرفة (الجولة + المالك)
   roomRef.onSnapshot(doc => {
-    if(!doc.exists) return toast('الغرفة غير موجودة');
+    if(!doc.exists) return toast('الغرفة انتهت 🚫');
     const d = doc.data();
     state.owner = d.owner;
     
-    // فحص هل تغيرت الجولة؟
     const oldRound = state.round;
     state.round = d.currentRound || 1;
     
-    renderApp(); // 🚀 تحديث الواجهة فوراً
+    renderApp();
 
-    // إذا تغيرت الجولة، تحرك للعمود الجديد
     if(state.round !== oldRound) {
        setTimeout(() => {
          const active = document.querySelector('.col-active input');
@@ -380,76 +387,69 @@ function subscribe(code) {
     }
   });
 
-  // B. الاستماع للاعبين
   roomRef.collection('players').onSnapshot(snap => {
     state.players = [];
     snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
-    renderApp(); // 🚀 تحديث الواجهة عند أي تغيير في الدرجات أو الأسماء
+    renderApp();
   });
 }
 
-/* ===== أزرار الواجهة ===== */
+/* ===== Buttons ===== */
 document.getElementById('createBtn').onclick = async () => {
-  const code = Math.random().toString(36).slice(2,8).toUpperCase();
+  // توليد كود رقمي 6 أرقام
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
   await db.collection('rooms').doc(code).set({
     owner: state.me, currentRound: 1, createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  document.getElementById('roomCode').value = code;
   subscribe(code);
-  toast('تم إنشاء الغرفة');
+  toast('تم إنشاء الغرفة 🚀');
 };
 
 document.getElementById('joinBtn').onclick = async () => {
-  const code = document.getElementById('roomCode').value.toUpperCase().trim();
+  const code = document.getElementById('roomCodeInput').value.trim();
   if(!code) return toast('اكتب الكود');
   const d = await db.collection('rooms').doc(code).get();
-  if(d.exists) { subscribe(code); toast('تم الدخول'); }
-  else toast('غرفة غير موجودة');
+  if(d.exists) { subscribe(code); toast('تم الدخول 👋'); }
+  else toast('الكود غلط!');
 };
 
 document.getElementById('addBtn').onclick = async () => {
-  if(!roomRef) return toast('ادخل غرفة أولاً');
   const n = document.getElementById('pName').value.trim();
-  if(!n) return toast('اكتب الاسم');
+  if(!n) return toast('اكتب اسمك');
   await roomRef.collection('players').add({
     name: n, uid: state.me, scores: Array(ROUNDS).fill(null),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
   document.getElementById('pName').value = '';
+  toast('منور يا ' + n);
 };
 
-// أدوات إضافية
-function deletePlayer(id) {
-  if(confirm('حذف هذا اللاعب؟')) roomRef.collection('players').doc(id).delete();
-}
+function deletePlayer(id) { if(confirm('متأكد؟')) roomRef.collection('players').doc(id).delete(); }
 async function clearAll() {
-  if(confirm('هل أنت متأكد من مسح الجميع؟')) {
+  if(confirm('مسح الكل؟')) {
     const snap = await roomRef.collection('players').get();
-    const batch = db.batch();
-    snap.forEach(d => batch.delete(d.ref));
+    const batch = db.batch(); snap.forEach(d=>batch.delete(d.ref));
     await batch.commit();
-    toast('تم المسح');
   }
 }
 function calcResult() {
-  // الترتيب محسوب تلقائياً في state.players بسبب renderApp
-  // لكن لعرض رسالة:
   const sorted = [...state.players].sort((a,b) => {
      const sA = (a.scores||[]).reduce((x,y)=>x+(y||0),0);
      const sB = (b.scores||[]).reduce((x,y)=>x+(y||0),0);
      return sA - sB;
   });
-  if(sorted.length) toast(`الأول: ${sorted[0].name}`);
+  if(sorted.length) toast(`👑 المتصدر: ${sorted[0].name}`);
 }
 function randomSkip() {
-  if(!state.players.length) return toast('لا يوجد لاعبين');
+  if(!state.players.length) return;
   const r = state.players[Math.floor(Math.random()*state.players.length)];
   document.getElementById('modalName').textContent = r.name;
   document.getElementById('modal').style.display = 'flex';
 }
 
-// تشغيل أولي
-renderApp();
+// التشغيل الأولي: فحص الرابط
+window.onload = checkUrlForRoom;
+
 </script>
 </body>
 </html>
