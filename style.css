@@ -99,7 +99,7 @@ table {
   width: 100%; 
   border-collapse: separate; 
   border-spacing: 0; 
-  min-width: 800px; /* لضمان ظهور السكرول */
+  min-width: 800px;
 }
 
 th, td { 
@@ -118,50 +118,29 @@ th {
 }
 
 /* --- تثبيت أول 3 أعمدة (RTL) --- */
-
-/* 1. عمود الاسم (يمين 0) */
 th:nth-child(1), td:nth-child(1) {
-  position: sticky; 
-  right: 0; 
-  z-index: 30;
+  position: sticky; right: 0; z-index: 30;
   width: 100px; min-width: 100px; max-width: 100px;
   background: #1e293b;
   border-left: 1px solid var(--border);
   overflow: hidden; text-overflow: ellipsis;
 }
-
-/* 2. عمود المجموع (يمين 100) */
 th:nth-child(2), td:nth-child(2) {
-  position: sticky; 
-  right: 100px;
-  z-index: 30;
+  position: sticky; right: 100px; z-index: 30;
   width: 60px; min-width: 60px;
   background: #1e293b;
   font-weight: 900; color: var(--gold);
   border-left: 1px solid var(--border);
 }
-
-/* 3. عمود الميدالية (يمين 160) */
 th:nth-child(3), td:nth-child(3) {
-  position: sticky; 
-  right: 160px; 
-  z-index: 30;
+  position: sticky; right: 160px; z-index: 30;
   width: 50px; min-width: 50px;
   background: #1e293b;
-  border-left: 3px solid var(--primary); /* فاصل */
+  border-left: 3px solid var(--primary);
 }
+th:nth-child(1), th:nth-child(2), th:nth-child(3) { z-index: 40; background: #0f172a; }
 
-/* التأكد من الهيدر الثابت */
-th:nth-child(1), th:nth-child(2), th:nth-child(3) {
-  z-index: 40;
-  background: #0f172a;
-}
-
-/* --- تنسيقات أخرى --- */
-.active-col { 
-  background: rgba(99, 102, 241, 0.15) !important; 
-  border-inline: 1px dashed rgba(99, 102, 241, 0.4); 
-}
+.active-col { background: rgba(99, 102, 241, 0.15) !important; border-inline: 1px dashed rgba(99, 102, 241, 0.4); }
 th.active-col { color: var(--primary); border-bottom: 2px solid var(--primary); }
 
 .score-inp { 
@@ -173,7 +152,6 @@ th.active-col { color: var(--primary); border-bottom: 2px solid var(--primary); 
 .score-inp:focus { background: #1e293b; border-color: var(--primary); }
 .score-inp:disabled { opacity: 0.3; border: none; }
 
-/* ألوان الخلفية للأوائل والأواخر (لأن الخلفية شفافة) */
 .rank-1 td:nth-child(1), .rank-1 td:nth-child(2), .rank-1 td:nth-child(3) { background: #373018; }
 .rank-last td:nth-child(1), .rank-last td:nth-child(2), .rank-last td:nth-child(3) { background: #3f1919; }
 
@@ -195,8 +173,13 @@ th.active-col { color: var(--primary); border-bottom: 2px solid var(--primary); 
 
 .admin-controls { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px; text-align: center; }
 .round-nav { display: flex; align-items: center; justify-content: center; gap: 15px; }
+.round-info { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .nav-btn { padding: 8px 15px; }
-.round-display { font-size: 18px; font-weight: bold; color: var(--primary); }
+.round-display { font-size: 18px; font-weight: bold; color: #fff; }
+
+/* تنسيق وصف الجولة الجديد */
+.round-desc { font-size: 14px; color: var(--accent); font-weight: 700; }
+
 .viewer-controls { text-align: center; margin-top: 5px; color: var(--text-muted); }
 .viewer-controls b { color: #fff; }
 
