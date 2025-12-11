@@ -9,7 +9,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="style.css">
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -58,13 +57,19 @@
         <div id="adminControls" class="admin-controls" style="display:none;">
           <div class="round-nav">
             <button id="prevRoundBtn" class="btn-glass nav-btn">❮</button>
-            <span class="round-display">جولة <span id="roundNum">1</span></span>
+            <div class="round-info">
+                <span class="round-display">جولة <span id="roundNum">1</span></span>
+                <span id="roundDescAdmin" class="round-desc">-- الوصف --</span>
+            </div>
             <button id="nextRoundBtn" class="btn-glass nav-btn">❯</button>
           </div>
         </div>
         
         <div id="viewerControls" class="viewer-controls" style="display:none;">
-           <span>الجولة الحالية: <b id="viewRoundNum">1</b></span>
+           <div style="display:flex; flex-direction:column;">
+               <span>الجولة الحالية: <b id="viewRoundNum">1</b></span>
+               <span id="roundDescViewer" class="round-desc">-- الوصف --</span>
+           </div>
         </div>
       </div>
 
@@ -102,6 +107,8 @@
   </div>
 
   <div id="toast" class="toast"></div>
+
+  <audio id="skipAudio" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" preload="auto"></audio>
 
   <script src="script.js"></script>
 </body>
