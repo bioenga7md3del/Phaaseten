@@ -1,6 +1,6 @@
 /* =========================================
    1. إعدادات Firebase
-   (⚠️⚠️ استبدل هذا الجزء ببيانات مشروعك ⚠️⚠️)
+   (⚠️⚠️ ضع بيانات مشروعك هنا ⚠️⚠️)
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -13,10 +13,26 @@ const firebaseConfig = {
 
 try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 const db = firebase.firestore();
-const ROUNDS = 10;
 
 /* =========================================
-   2. إدارة الحالة
+   2. الثوابت والقواعد (Phase Rules)
+   ========================================= */
+const ROUNDS = 10;
+const PHASE_RULES = [
+    "2 مجموعات (3)",               // الجولة 1
+    "مجموعة (3) + تسلسل (4)",      // الجولة 2
+    "مجموعة (4) + تسلسل (4)",      // الجولة 3
+    "تسلسل (7)",                   // الجولة 4
+    "تسلسل (8)",                   // الجولة 5
+    "تسلسل (9)",                   // الجولة 6
+    "2 مجموعات (4)",               // الجولة 7
+    "7 كروت لون واحد",             // الجولة 8
+    "مجموعة (5) + مجموعة (2)",     // الجولة 9
+    "مجموعة (5) + مجموعة (3)"      // الجولة 10
+];
+
+/* =========================================
+   3. إدارة الحالة
    ========================================= */
 let state = { me: null, room: null, owner: null, round: 1, players: [] };
 let unsubRoom = null;
@@ -24,10 +40,9 @@ let unsubPlayers = null;
 const timers = new Map();
 
 /* =========================================
-   3. عند تحميل الصفحة
+   4. التهيئة
    ========================================= */
 document.addEventListener('DOMContentLoaded', () => {
-    // تسجيل دخول
     firebase.auth().onAuthStateChanged(async u => {
         if(!u) await firebase.auth().signInAnonymously();
         else state.me = u.uid;
@@ -49,13 +64,53 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('clearAllBtn').addEventListener('click', clearAll);
     document.getElementById('closeModalBtn').addEventListener('click', closeModal);
 
-    // فحص الرابط
     const params = new URLSearchParams(window.location.search);
     if(params.get('room')) document.getElementById('roomInput').value = params.get('room');
 });
 
 /* =========================================
-   4. المنطق الأساسي
+   5. الدوال المساعدة
+   ========================================= */
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.innerHTML = isErr ? `⚠️ ${msg}` : `✅ ${msg}`;
+  t.className = isErr ? 'toast show error' : 'toast show';
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showModal(name, type) {
+  document.getElementById('skipType').textContent = type;
+  document.getElementById('skipTarget').textContent = name;
+  document.getElementById('skipModal').style.display = 'flex';
+  
+  // تشغيل الصوت 🔊
+  const audio = document.getElementById('skipAudio');
+  if(audio) {
+      audio.currentTime = 0; // إعادة الصوت للبداية
+      audio.play().catch(e => console.log("Audio play failed (needs interaction)"));
+  }
+}
+
+function closeModal() { document.getElementById('skipModal').style.display = 'none'; }
+
+function switchScreen(screen) {
+  document.getElementById('landingScreen').style.display = screen === 'landing' ? 'block' : 'none';
+  document.getElementById('gameRoom').style.display = screen === 'game' ? 'block' : 'none';
+  
+  if(screen === 'game') {
+    const url = new URL(window.location);
+    url.searchParams.set('room', state.room);
+    window.history.pushState({}, '', url);
+    document.getElementById('displayCode').textContent = state.room;
+  } else {
+    const url = new URL(window.location);
+    url.searchParams.delete('room');
+    window.history.pushState({}, '', url);
+  }
+}
+
+/* =========================================
+   6. منطق الغرفة
    ========================================= */
 async function createRoom() {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -65,7 +120,7 @@ async function createRoom() {
     });
     subscribe(code);
     toast('تم إنشاء الغرفة');
-  } catch(e) { console.error(e); toast('فشل في الاتصال', true); }
+  } catch(e) { console.error(e); toast('فشل الاتصال', true); }
 }
 
 async function joinRoom() {
@@ -75,7 +130,7 @@ async function joinRoom() {
     const doc = await db.collection('rooms').doc(code).get();
     if(!doc.exists) return toast('غرفة غير موجودة', true);
     subscribe(code);
-  } catch(e) { toast('فشل في الاتصال', true); }
+  } catch(e) { toast('فشل الاتصال', true); }
 }
 
 function subscribe(code) {
@@ -83,7 +138,6 @@ function subscribe(code) {
   if(unsubPlayers) unsubPlayers();
   state.room = code;
 
-  // 1. مراقبة الغرفة
   unsubRoom = db.collection('rooms').doc(code).onSnapshot(doc => {
     if(!doc.exists) { exitRoom(); return toast('تم إغلاق الغرفة', true); }
     const d = doc.data();
@@ -101,7 +155,6 @@ function subscribe(code) {
     }
   });
 
-  // 2. مراقبة اللاعبين
   unsubPlayers = db.collection('rooms').doc(code).collection('players').onSnapshot(snap => {
     state.players = [];
     snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
@@ -112,19 +165,17 @@ function subscribe(code) {
 }
 
 /* =========================================
-   5. دالة الحفظ (Optimistic Update)
+   7. دالة الحفظ
    ========================================= */
 async function saveScore(pid, rIdx, val) {
   const num = (val === '' || val === '-') ? null : Number(val);
   
-  // تحديث محلي فوري
   const pIndex = state.players.findIndex(x => x.id === pid);
   if(pIndex > -1) {
       if(!state.players[pIndex].scores) state.players[pIndex].scores = [];
       state.players[pIndex].scores[rIdx] = num;
   }
 
-  // تجهيز للإرسال
   const player = state.players.find(x => x.id === pid);
   let newScores = player.scores ? [...player.scores] : [];
   while(newScores.length < ROUNDS) newScores.push(null);
@@ -138,16 +189,24 @@ async function saveScore(pid, rIdx, val) {
 }
 
 /* =========================================
-   6. رسم الواجهة (UI Rendering)
+   8. رسم الواجهة
    ========================================= */
 function renderUI() {
   const isAdmin = (state.me === state.owner);
   
+  // التحكم في الظهور
   document.getElementById('adminControls').style.display = isAdmin ? 'block' : 'none';
   document.getElementById('viewerControls').style.display = isAdmin ? 'none' : 'block';
   document.getElementById('clearAllBtn').style.display = isAdmin ? 'block' : 'none';
+  
+  // تحديث أرقام الجولات والقواعد
   document.getElementById('roundNum').textContent = state.round;
   document.getElementById('viewRoundNum').textContent = state.round;
+  
+  // تحديث وصف الجولة (القاعدة)
+  const ruleText = PHASE_RULES[state.round - 1] || "";
+  document.getElementById('roundDescAdmin').textContent = ruleText;
+  document.getElementById('roundDescViewer').textContent = ruleText;
 
   const data = state.players.map(p => ({
     ...p,
@@ -158,10 +217,9 @@ function renderUI() {
   let rank = 1;
   const worstScore = data.length ? data[data.length-1].total : -1;
 
-  // بناء الهيدر
+  // الهيدر
   const thead = document.getElementById('tHead');
   thead.innerHTML = ''; 
-  
   const thName = document.createElement('th'); thName.textContent = 'اللاعب'; thead.appendChild(thName);
   const thTotal = document.createElement('th'); thTotal.textContent = 'مجموع'; thead.appendChild(thTotal);
   const thRank = document.createElement('th'); thRank.textContent = '#'; thead.appendChild(thRank);
@@ -177,7 +235,7 @@ function renderUI() {
       const thDel = document.createElement('th'); thDel.textContent = '×'; thead.appendChild(thDel);
   }
 
-  // بناء الجدول
+  // الجسم
   const tbody = document.getElementById('tBody');
   tbody.innerHTML = '';
 
@@ -217,7 +275,6 @@ function renderUI() {
     // 4. الجولات
     for(let r=0; r<ROUNDS; r++) {
       const td = document.createElement('td');
-      
       if(r === state.round - 1) {
         td.className = 'active-col';
         const inp = document.createElement('input');
@@ -261,7 +318,7 @@ function renderUI() {
 }
 
 /* =========================================
-   7. باقي الوظائف
+   9. باقي الأزرار
    ========================================= */
 async function addPlayer() {
   const name = document.getElementById('playerName').value.trim();
@@ -272,9 +329,7 @@ async function addPlayer() {
   document.getElementById('playerName').value = '';
 }
 
-function delPlayer(id) {
-  if(confirm('حذف؟')) db.collection('rooms').doc(state.room).collection('players').doc(id).delete();
-}
+function delPlayer(id) { if(confirm('حذف؟')) db.collection('rooms').doc(state.room).collection('players').doc(id).delete(); }
 
 async function clearAll() {
   if(!confirm('حذف الجميع؟')) return;
@@ -315,7 +370,6 @@ function smartSkip() {
     const myScore = (sorted[myIdx].scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
     const prevScore = (prev.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
     const nextScore = (next.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
-    
     if(Math.abs(myScore - prevScore) <= Math.abs(myScore - nextScore)) target = prev;
     else target = next;
   }
@@ -357,30 +411,4 @@ function shareWa() {
     const url = window.location.href.split('?')[0]; 
     const txt = `يلا نلعب Phase 10 🔥\nادخل على الرابط:\n${url}?room=${state.room}\nكود الغرفة: *${state.room}*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`); 
-}
-function toast(msg, isErr) {
-  const t = document.getElementById('toast');
-  t.innerHTML = isErr ? `⚠️ ${msg}` : `✅ ${msg}`;
-  t.className = isErr ? 'toast show error' : 'toast show';
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-function showModal(name, type) {
-  document.getElementById('skipType').textContent = type;
-  document.getElementById('skipTarget').textContent = name;
-  document.getElementById('skipModal').style.display = 'flex';
-}
-function closeModal() { document.getElementById('skipModal').style.display = 'none'; }
-function switchScreen(screen) {
-  document.getElementById('landingScreen').style.display = screen === 'landing' ? 'block' : 'none';
-  document.getElementById('gameRoom').style.display = screen === 'game' ? 'block' : 'none';
-  if(screen === 'game') {
-    const url = new URL(window.location);
-    url.searchParams.set('room', state.room);
-    window.history.pushState({}, '', url);
-    document.getElementById('displayCode').textContent = state.room;
-  } else {
-    const url = new URL(window.location);
-    url.searchParams.delete('room');
-    window.history.pushState({}, '', url);
-  }
 }
