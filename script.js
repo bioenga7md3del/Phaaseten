@@ -265,7 +265,7 @@ function renderUI() {
     // 3. الميدالية
     const tdRankIcon = document.createElement('td');
     let rankIcon = `<span style="font-size:12px; opacity:0.7">#${p.rank}</span>`;
-    if(p.total === worstScore && data.length > 1) rankIcon = '💩';
+    if(p.total === worstScore && data.length > 1) rankIcon = '🐑';
     else if(p.rank === 1) rankIcon = '🥇';
     else if(p.rank === 2) rankIcon = '🥈';
     else if(p.rank === 3) rankIcon = '🥉';
