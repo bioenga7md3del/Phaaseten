@@ -14,7 +14,7 @@ try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 const db = firebase.firestore();
 
 /* =========================================
-   2. الثوابت والمتغيرات
+   2. الثوابت وقاموس التحفيل العشوائي 😂
    ========================================= */
 const ROUNDS = 10;
 const PHASE_RULES = [
@@ -23,27 +23,67 @@ const PHASE_RULES = [
     "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
 ];
 
-const FUNNY_COMMENTS = {
-    lion: ["وسع للأسد! 🦁", "يا كايدهم يا ملك 👑", "القمة بتلسع 🧊", "عاش يا وحش 🔥"],
-    tiger: ["النمر بيخربش 🐯", "قربت يا بطل 💪", "عينك على الأسد 👀"],
-    goat: ["يا معزة.. شد حيلك 🐐", "الوضع خطر ⚠️", "اهرب من القاع 🏃"],
-    sheep: ["ماء ماء.. 🐑", "المركز ده بتاعك لوحدك 😂", "شكلك وحش أوي 🌚"],
-    highScore: ["ايه الرقم ده؟! 😱", "لبست في الحيط 🧱", "خربت خالص 😂"],
-    zero: ["برنس الليالي ✨", "صفر الملوك 👌", "ولا غلطة!"]
+// قاموس الرسائل العشوائية (Status Messages)
+const STATUS_MSGS = {
+    lion: [
+        "يا عم الناس.. محدش قدك 🦁",
+        "وسع للأسد عشان بياكل لوحده 🍖",
+        "القمة بتاعتك وبس يا كبير 👑",
+        "مسيطر على السيرفر.. استمر! 🔥",
+        "الملك وصل.. كله يوسع الطريق 🦁",
+        "يا كايدهم يا عالي 😉"
+    ],
+    tiger: [
+        "النمر بيخربش.. فاضل تكه 🐯",
+        "عينك على اللي فوق.. هاتجيبه 💪",
+        "انت مش سهل.. الأسد قلقان منك 👀",
+        "شد حيلك.. الصدارة بتناديك 🔥",
+        "وحش.. بس لسه موصلتش للقمة 🥈"
+    ],
+    normal: [
+        "خليك في الأمان.. ولا فوق ولا تحت 😐",
+        "العب بذكاء.. لسه بدري 🎲",
+        "ركز شوية.. الجيم بيقلب في ثانية ⏳",
+        "جمع كروتك صح.. ومتقلقش 🃏"
+    ],
+    goat: [
+        "يا معزة اهربي.. القاع قريب 🐐",
+        "شكلك هتحصل اللي تحتك.. استرجل 😂",
+        "الوضع مش مطمن.. شد حيلك ⚠️",
+        "هتتزحلق ولا ايه؟ امسك نفسك 🧗",
+        "يا خوفي عليك من اللي جاي 🌚"
+    ],
+    sheep: [
+        "فوق يا اسطى.. البرسيم نازل حالا 🐑🌿",
+        "يا فضيحتك وسط القبائل.. ركز! 😂",
+        "ماء ماء.. المكان ده بتاعك لوحدك 🐑",
+        "انت بتلعب معانا ولا ضدنا؟ 🤣",
+        "الخروف وصل.. رحبوا بيه يا جماعة 👏",
+        "شكلك وحش أوي.. لم درجاتك 📉"
+    ]
 };
 
+// قاموس التعليقات السريعة (Toasts)
+const TOAST_COMMENTS = {
+    zero: ["برنس الليالي ✨", "صفر الملوك 👌", "ولا غلطة!", "الله عليك يا حبيب والديك"],
+    highScore: ["ايه الرقم ده؟! 😱", "لبست في الحيط 🧱", "خربت خالص 😂", "يا ساتر يارب"]
+};
+
+/* =========================================
+   3. المتغيرات وإدارة الحالة
+   ========================================= */
 let state = { me: null, room: null, owner: null, round: 1, players: [] };
 let unsubRoom = null;
 let unsubPlayers = null;
-let wakeLock = null; // متغير لمنع انطفاء الشاشة
+let wakeLock = null; 
 const timers = new Map();
 
-// لتتبع تغيير المراكز وتشغيل الأصوات
-let lastLionId = null;
-let lastSheepId = null;
+// لتتبع التغييرات ومنع التحديث المستمر للنص العشوائي
+let lastMyRank = null;
+let lastMyTotal = null; 
 
 /* =========================================
-   3. التهيئة والـ Wake Lock
+   4. التهيئة
    ========================================= */
 document.addEventListener('DOMContentLoaded', () => {
     firebase.auth().onAuthStateChanged(async u => {
@@ -51,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else state.me = u.uid;
     });
 
-    // تفعيل Wake Lock أول ما يلمس الشاشة
     document.addEventListener('click', requestWakeLock, { once: true });
 
     document.getElementById('createBtn').addEventListener('click', createRoom);
@@ -73,38 +112,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if(params.get('room')) document.getElementById('roomInput').value = params.get('room');
 });
 
-// دالة منع انطفاء الشاشة 💡
 async function requestWakeLock() {
-    try {
-        if ('wakeLock' in navigator) {
-            wakeLock = await navigator.wakeLock.request('screen');
-            console.log('Screen Wake Lock active');
-        }
-    } catch (err) {
-        console.log(`${err.name}, ${err.message}`);
-    }
+    try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } 
+    catch (err) { console.log(err); }
 }
 
 /* =========================================
-   4. دوال الصوت والاحتفال 🎉🔊
+   5. دوال مساعدة
    ========================================= */
 function playSound(id) {
     const audio = document.getElementById(id);
-    if(audio) {
-        audio.currentTime = 0;
-        audio.play().catch(() => console.log("Sound blocked by browser"));
-    }
+    if(audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
 }
 
 function triggerConfetti() {
-    // تشغيل الكونفيتي
-    confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#6366f1', '#fbbf24', '#ef4444', '#10b981']
-    });
-    playSound('winAudio'); // صوت احتفال
+    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#6366f1', '#fbbf24', '#ef4444'] });
+    playSound('winAudio');
 }
 
 function toast(msg, isErr = false) {
@@ -114,8 +137,8 @@ function toast(msg, isErr = false) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-function getRandomComment(type) {
-    const list = FUNNY_COMMENTS[type];
+function getRandomMsg(type) {
+    const list = STATUS_MSGS[type] || STATUS_MSGS['normal'];
     return list[Math.floor(Math.random() * list.length)];
 }
 
@@ -132,7 +155,7 @@ function switchScreen(screen) {
   document.getElementById('landingScreen').style.display = screen === 'landing' ? 'block' : 'none';
   document.getElementById('gameRoom').style.display = screen === 'game' ? 'block' : 'none';
   if(screen === 'game') {
-    requestWakeLock(); // محاولة تفعيل الشاشة مرة أخرى
+    requestWakeLock();
     const url = new URL(window.location); url.searchParams.set('room', state.room);
     window.history.pushState({}, '', url);
     document.getElementById('displayCode').textContent = state.room;
@@ -143,7 +166,7 @@ function switchScreen(screen) {
 }
 
 /* =========================================
-   5. منطق الغرفة
+   6. منطق الغرفة
    ========================================= */
 async function createRoom() {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -175,16 +198,14 @@ function subscribe(code) {
     if(!doc.exists) { exitRoom(); return toast('تم إغلاق الغرفة', true); }
     const d = doc.data();
     state.owner = d.owner;
-    const oldRound = state.round;
+    
+    // لو الجولة اتغيرت نحدث الرسالة العشوائية اجباري
+    if(state.round !== (d.round || 1)) {
+        lastMyTotal = -1; // Force update
+    }
+    
     state.round = d.round || 1;
     renderUI();
-    
-    if(state.round !== oldRound) {
-      setTimeout(() => {
-        const active = document.querySelector('.active-col input');
-        if(active) active.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
-      }, 500);
-    }
   });
 
   unsubPlayers = db.collection('rooms').doc(code).collection('players').onSnapshot(snap => {
@@ -196,18 +217,19 @@ function subscribe(code) {
 }
 
 /* =========================================
-   6. الحفظ والاحتفال
+   7. الحفظ
    ========================================= */
 async function saveScore(pid, rIdx, val) {
   const num = (val === '' || val === '-') ? null : Number(val);
   
-  // 🔥 منطق الاحتفال
   if(num !== null) {
       if(num === 0) {
-          triggerConfetti(); // كونفيتي + صوت
-          toast(getRandomComment('zero'));
+          triggerConfetti();
+          const msgs = TOAST_COMMENTS['zero'];
+          toast(msgs[Math.floor(Math.random()*msgs.length)]);
       } else if(num >= 50) {
-          toast(getRandomComment('highScore'), true);
+          const msgs = TOAST_COMMENTS['highScore'];
+          toast(msgs[Math.floor(Math.random()*msgs.length)], true);
       }
   }
 
@@ -230,7 +252,53 @@ async function saveScore(pid, rIdx, val) {
 }
 
 /* =========================================
-   7. الواجهة والحيوانات
+   8. تحديث كارت الحالة (Status Card)
+   ========================================= */
+function updateMyStatusCard(myRank, totalPlayers, myTotalScore) {
+    const card = document.getElementById('myStatusCard');
+    const title = document.getElementById('statusTitle');
+    const msg = document.getElementById('statusMsg');
+    const emoji = document.getElementById('statusEmoji');
+    
+    // تحديد نوع الحيوان
+    let type = 'normal';
+    let icon = '😐';
+    let label = 'لاعب عادي';
+    let cssClass = 'status-normal';
+
+    if (totalPlayers === 0) { card.style.display = 'none'; return; }
+    
+    // منطق الترتيب
+    if (myRank === 0) {
+        type = 'lion'; icon = '🦁'; label = 'أنت الأسد'; cssClass = 'status-lion';
+    } else if (totalPlayers >= 2 && myRank === totalPlayers - 1) {
+        type = 'sheep'; icon = '🐑'; label = 'أنت الخروف'; cssClass = 'status-sheep';
+    } else if (totalPlayers >= 3 && myRank === 1) {
+        type = 'tiger'; icon = '🐯'; label = 'أنت النمر'; cssClass = 'status-tiger';
+    } else if (totalPlayers >= 4 && myRank === totalPlayers - 2) {
+        type = 'goat'; icon = '🐐'; label = 'أنت المعزة'; cssClass = 'status-goat';
+    }
+
+    // 🔥 تحديث النص فقط لو السكور اتغير أو الترتيب اتغير (عشان ميقعدش يغير كلام كل ثانية)
+    if (lastMyRank !== myRank || lastMyTotal !== myTotalScore) {
+        msg.textContent = getRandomMsg(type); // اختيار رسالة عشوائية جديدة
+        lastMyRank = myRank;
+        lastMyTotal = myTotalScore;
+        
+        // تشغيل صوت لو بقيت أسد أو خروف جديد
+        if(type === 'lion') playSound('lionAudio');
+        if(type === 'sheep') playSound('sheepAudio');
+    }
+
+    // تحديث الشكل دائماً
+    card.style.display = 'flex';
+    card.className = `glass-card status-card ${cssClass}`;
+    emoji.textContent = icon;
+    title.textContent = label;
+}
+
+/* =========================================
+   9. رسم الواجهة
    ========================================= */
 function getAnimalRank(index, total) {
     if (total === 0) return { icon: '', class: '' };
@@ -248,9 +316,8 @@ function renderUI() {
   document.getElementById('clearAllBtn').style.display = isAdmin ? 'block' : 'none';
   document.getElementById('roundNum').textContent = state.round;
   document.getElementById('viewRoundNum').textContent = state.round;
-  const ruleText = PHASE_RULES[state.round - 1] || "";
-  document.getElementById('roundDescAdmin').textContent = ruleText;
-  document.getElementById('roundDescViewer').textContent = ruleText;
+  document.getElementById('roundDescAdmin').textContent = PHASE_RULES[state.round - 1] || "";
+  document.getElementById('roundDescViewer').textContent = PHASE_RULES[state.round - 1] || "";
 
   const data = state.players.map(p => ({
     ...p,
@@ -258,21 +325,15 @@ function renderUI() {
     total: (p.scores || []).reduce((a, b) => a + (Number(b) || 0), 0)
   })).sort((a, b) => a.total - b.total);
 
-  // 🔥 التحقق من تغيير المراكز وتشغيل أصوات الحيوانات
-  if (data.length > 1) {
-      const currentLion = data[0].id;
-      const currentSheep = data[data.length - 1].id;
-
-      // لو الأسد اتغير وحد جديد مسك القمة
-      if (lastLionId && lastLionId !== currentLion) {
-         // نشغل صوت الأسد فقط لو المستخدمين في نفس الغرفة ومش لسه بادئين
-         // (اختياري: ممكن تخليها تشتغل بس لما تدوس زرار "من الأسد")
-      }
-      
-      lastLionId = currentLion;
-      lastSheepId = currentSheep;
+  // تحديث كارت حالتي الشخصية
+  const myIndex = data.findIndex(p => p.uid === state.me);
+  if (myIndex !== -1) {
+      updateMyStatusCard(myIndex, data.length, data[myIndex].total);
+  } else {
+      document.getElementById('myStatusCard').style.display = 'none';
   }
 
+  // رسم الجدول
   const thead = document.getElementById('tHead');
   thead.innerHTML = ''; 
   const thName = document.createElement('th'); thName.textContent = 'اللاعب'; thead.appendChild(thName);
@@ -313,17 +374,15 @@ function renderUI() {
         td.className = 'active-col';
         const inp = document.createElement('input');
         inp.type = 'number'; inp.pattern = '[0-9]*'; inp.className = 'score-inp';
-        const val = (p.scores[r] !== null && p.scores[r] !== undefined) ? p.scores[r] : '';
-        inp.value = val;
+        inp.value = (p.scores[r] !== null && p.scores[r] !== undefined) ? p.scores[r] : '';
         
-        const isMe = (p.uid === state.me);
-        if(!isAdmin && !isMe) { inp.disabled = true; inp.style.opacity = "0.5"; }
+        if(!isAdmin && p.uid !== state.me) { inp.disabled = true; inp.style.opacity = "0.5"; }
 
         const key = `${p.id}-${r}`;
         inp.oninput = () => {
           if(p.uid === state.me || isAdmin) {
-              const localP = state.players.find(x => x.id === p.id);
-              if(localP) { if(!localP.scores) localP.scores = []; localP.scores[r] = inp.value; }
+             const localP = state.players.find(x => x.id === p.id);
+             if(localP) { if(!localP.scores) localP.scores = []; localP.scores[r] = inp.value; }
           }
           if(timers.has(key)) clearTimeout(timers.get(key));
           timers.set(key, setTimeout(() => saveScore(p.id, r, inp.value), 600));
@@ -331,8 +390,7 @@ function renderUI() {
         inp.onblur = () => saveScore(p.id, r, inp.value);
         td.appendChild(inp);
       } else {
-        const val = (p.scores[r] !== null && p.scores[r] !== undefined) ? p.scores[r] : '';
-        td.textContent = val;
+        td.textContent = (p.scores[r] !== null && p.scores[r] !== undefined) ? p.scores[r] : '';
         td.style.opacity = '0.5';
       }
       tr.appendChild(td);
@@ -351,27 +409,7 @@ function renderUI() {
   });
 }
 
-// تعديل زر المتصدر ليشغل الأصوات كمان
-function calcLeader() {
-  const sorted = [...state.players].sort((a,b) => {
-    const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
-    const sb = (b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
-    return sa - sb;
-  });
-  if(sorted.length) {
-      toast(`👑 الأسد: ${sorted[0].name}`);
-      playSound('lionAudio'); // صوت الأسد
-
-      if(sorted.length > 1) {
-          setTimeout(() => {
-              toast(`🐑 الخروف: ${sorted[sorted.length-1].name}`, true);
-              playSound('sheepAudio'); // صوت الخروف
-          }, 2000);
-      }
-  }
-}
-
-// ... باقي الدوال (addPlayer, delPlayer, etc..) زي ما هي بدون تغيير
+// ... باقي الدوال (addPlayer, etc) زي ما هي بدون تغيير ...
 async function addPlayer() {
   const name = document.getElementById('playerName').value.trim();
   if(!name) return toast('اكتب الاسم', true);
@@ -420,6 +458,23 @@ function smartSkip() {
     else target = next;
   }
   showModal(target.name, 'سكيب ذكي 🧠');
+}
+function calcLeader() {
+  const sorted = [...state.players].sort((a,b) => {
+    const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
+    const sb = (b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
+    return sa - sb;
+  });
+  if(sorted.length) {
+      toast(`👑 الأسد: ${sorted[0].name}`);
+      playSound('lionAudio');
+      if(sorted.length > 1) {
+          setTimeout(() => {
+              toast(`🐑 الخروف: ${sorted[sorted.length-1].name}`, true);
+              playSound('sheepAudio');
+          }, 2000);
+      }
+  }
 }
 async function cleanOldRooms() {
   if(!confirm('حذف الغرف القديمة (24س)؟')) return;
