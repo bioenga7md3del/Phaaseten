@@ -9,11 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
 
@@ -80,7 +83,7 @@
         </div>
 
         <div class="btn-group">
-          <button id="leaderBtn" class="btn-glass">🥇 المتصدر</button>
+          <button id="leaderBtn" class="btn-glass">👑 من الأسد؟</button>
           <button id="randomSkipBtn" class="btn-glass">🎲 عشوائي</button>
           <button id="smartSkipBtn" class="btn-purple">🧠 ذكي</button>
         </div>
@@ -109,6 +112,9 @@
   <div id="toast" class="toast"></div>
 
   <audio id="skipAudio" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" preload="auto"></audio>
+  <audio id="lionAudio" src="https://www.myinstants.com/media/sounds/lion-roar.mp3" preload="auto"></audio>
+  <audio id="sheepAudio" src="https://www.myinstants.com/media/sounds/goat-scream.mp3" preload="auto"></audio>
+  <audio id="winAudio" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
 
   <script src="script.js"></script>
 </body>
