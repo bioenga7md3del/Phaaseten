@@ -14,7 +14,7 @@ try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 const db = firebase.firestore();
 
 /* =========================================
-   2. الثوابت وقاموس التحفيل العشوائي 😂
+   2. الثوابت والمتغيرات
    ========================================= */
 const ROUNDS = 10;
 const PHASE_RULES = [
@@ -23,21 +23,19 @@ const PHASE_RULES = [
     "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
 ];
 
-// قاموس الرسائل العشوائية (Status Messages)
+// قاموس الرسائل (يظهر في كارت الحالة فقط بصمت)
 const STATUS_MSGS = {
     lion: [
         "يا عم الناس.. محدش قدك 🦁",
         "وسع للأسد عشان بياكل لوحده 🍖",
         "القمة بتاعتك وبس يا كبير 👑",
         "مسيطر على السيرفر.. استمر! 🔥",
-        "الملك وصل.. كله يوسع الطريق 🦁",
         "يا كايدهم يا عالي 😉"
     ],
     tiger: [
         "النمر بيخربش.. فاضل تكه 🐯",
         "عينك على اللي فوق.. هاتجيبه 💪",
         "انت مش سهل.. الأسد قلقان منك 👀",
-        "شد حيلك.. الصدارة بتناديك 🔥",
         "وحش.. بس لسه موصلتش للقمة 🥈"
     ],
     normal: [
@@ -50,40 +48,25 @@ const STATUS_MSGS = {
         "يا معزة اهربي.. القاع قريب 🐐",
         "شكلك هتحصل اللي تحتك.. استرجل 😂",
         "الوضع مش مطمن.. شد حيلك ⚠️",
-        "هتتزحلق ولا ايه؟ امسك نفسك 🧗",
-        "يا خوفي عليك من اللي جاي 🌚"
+        "هتتزحلق ولا ايه؟ امسك نفسك 🧗"
     ],
     sheep: [
         "فوق يا اسطى.. البرسيم نازل حالا 🐑🌿",
         "يا فضيحتك وسط القبائل.. ركز! 😂",
         "ماء ماء.. المكان ده بتاعك لوحدك 🐑",
         "انت بتلعب معانا ولا ضدنا؟ 🤣",
-        "الخروف وصل.. رحبوا بيه يا جماعة 👏",
-        "شكلك وحش أوي.. لم درجاتك 📉"
+        "الخروف وصل.. رحبوا بيه يا جماعة 👏"
     ]
 };
 
-// قاموس التعليقات السريعة (Toasts)
-const TOAST_COMMENTS = {
-    zero: ["برنس الليالي ✨", "صفر الملوك 👌", "ولا غلطة!", "الله عليك يا حبيب والديك"],
-    highScore: ["ايه الرقم ده؟! 😱", "لبست في الحيط 🧱", "خربت خالص 😂", "يا ساتر يارب"]
-};
-
-/* =========================================
-   3. المتغيرات وإدارة الحالة
-   ========================================= */
 let state = { me: null, room: null, owner: null, round: 1, players: [] };
 let unsubRoom = null;
 let unsubPlayers = null;
 let wakeLock = null; 
 const timers = new Map();
 
-// لتتبع التغييرات ومنع التحديث المستمر للنص العشوائي
-let lastMyRank = null;
-let lastMyTotal = null; 
-
 /* =========================================
-   4. التهيئة
+   3. التهيئة
    ========================================= */
 document.addEventListener('DOMContentLoaded', () => {
     firebase.auth().onAuthStateChanged(async u => {
@@ -118,16 +101,11 @@ async function requestWakeLock() {
 }
 
 /* =========================================
-   5. دوال مساعدة
+   4. دوال الصوت والمساعدة
    ========================================= */
 function playSound(id) {
     const audio = document.getElementById(id);
     if(audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
-}
-
-function triggerConfetti() {
-    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#6366f1', '#fbbf24', '#ef4444'] });
-    playSound('winAudio');
 }
 
 function toast(msg, isErr = false) {
@@ -166,7 +144,7 @@ function switchScreen(screen) {
 }
 
 /* =========================================
-   6. منطق الغرفة
+   5. منطق الغرفة والاشتراكات
    ========================================= */
 async function createRoom() {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -199,9 +177,10 @@ function subscribe(code) {
     const d = doc.data();
     state.owner = d.owner;
     
-    // لو الجولة اتغيرت نحدث الرسالة العشوائية اجباري
+    // 🔥 كشف تغيير الجولة (الأكشن الوحيد التلقائي)
     if(state.round !== (d.round || 1)) {
-        lastMyTotal = -1; // Force update
+        playSound('winAudio'); // صوت بسيط لتنبيه تغيير الجولة
+        toast(`بدأت الجولة ${d.round || 1}`);
     }
     
     state.round = d.round || 1;
@@ -217,22 +196,13 @@ function subscribe(code) {
 }
 
 /* =========================================
-   7. الحفظ
+   6. الحفظ (صامت تماماً 🤫)
    ========================================= */
 async function saveScore(pid, rIdx, val) {
   const num = (val === '' || val === '-') ? null : Number(val);
   
-  if(num !== null) {
-      if(num === 0) {
-          triggerConfetti();
-          const msgs = TOAST_COMMENTS['zero'];
-          toast(msgs[Math.floor(Math.random()*msgs.length)]);
-      } else if(num >= 50) {
-          const msgs = TOAST_COMMENTS['highScore'];
-          toast(msgs[Math.floor(Math.random()*msgs.length)], true);
-      }
-  }
-
+  // ⚠️ تم حذف الكونفيتي والتوست والأصوات من هنا بناءً على طلبك
+  
   const pIndex = state.players.findIndex(x => x.id === pid);
   if(pIndex > -1) {
       if(!state.players[pIndex].scores) state.players[pIndex].scores = [];
@@ -252,15 +222,14 @@ async function saveScore(pid, rIdx, val) {
 }
 
 /* =========================================
-   8. تحديث كارت الحالة (Status Card)
+   7. كارت الحالة (تحديث بصري فقط 👁️)
    ========================================= */
-function updateMyStatusCard(myRank, totalPlayers, myTotalScore) {
+function updateMyStatusCard(myRank, totalPlayers) {
     const card = document.getElementById('myStatusCard');
     const title = document.getElementById('statusTitle');
     const msg = document.getElementById('statusMsg');
     const emoji = document.getElementById('statusEmoji');
     
-    // تحديد نوع الحيوان
     let type = 'normal';
     let icon = '😐';
     let label = 'لاعب عادي';
@@ -268,7 +237,6 @@ function updateMyStatusCard(myRank, totalPlayers, myTotalScore) {
 
     if (totalPlayers === 0) { card.style.display = 'none'; return; }
     
-    // منطق الترتيب
     if (myRank === 0) {
         type = 'lion'; icon = '🦁'; label = 'أنت الأسد'; cssClass = 'status-lion';
     } else if (totalPlayers >= 2 && myRank === totalPlayers - 1) {
@@ -279,18 +247,11 @@ function updateMyStatusCard(myRank, totalPlayers, myTotalScore) {
         type = 'goat'; icon = '🐐'; label = 'أنت المعزة'; cssClass = 'status-goat';
     }
 
-    // 🔥 تحديث النص فقط لو السكور اتغير أو الترتيب اتغير (عشان ميقعدش يغير كلام كل ثانية)
-    if (lastMyRank !== myRank || lastMyTotal !== myTotalScore) {
-        msg.textContent = getRandomMsg(type); // اختيار رسالة عشوائية جديدة
-        lastMyRank = myRank;
-        lastMyTotal = myTotalScore;
-        
-        // تشغيل صوت لو بقيت أسد أو خروف جديد
-        if(type === 'lion') playSound('lionAudio');
-        if(type === 'sheep') playSound('sheepAudio');
-    }
-
-    // تحديث الشكل دائماً
+    // هنا بنحدث النص والشكل بس من غير أي صوت
+    // بنختار رسالة عشوائية جديدة كل مرة الـ Render بيشتغل (يعني مع كل تغيير رقم)
+    // عشان تحس إن "الكومنت" بيتفاعل مع اللعب
+    msg.textContent = getRandomMsg(type);
+    
     card.style.display = 'flex';
     card.className = `glass-card status-card ${cssClass}`;
     emoji.textContent = icon;
@@ -298,7 +259,7 @@ function updateMyStatusCard(myRank, totalPlayers, myTotalScore) {
 }
 
 /* =========================================
-   9. رسم الواجهة
+   8. رسم الواجهة
    ========================================= */
 function getAnimalRank(index, total) {
     if (total === 0) return { icon: '', class: '' };
@@ -325,10 +286,10 @@ function renderUI() {
     total: (p.scores || []).reduce((a, b) => a + (Number(b) || 0), 0)
   })).sort((a, b) => a.total - b.total);
 
-  // تحديث كارت حالتي الشخصية
+  // تحديث كارت الحالة (صامت)
   const myIndex = data.findIndex(p => p.uid === state.me);
   if (myIndex !== -1) {
-      updateMyStatusCard(myIndex, data.length, data[myIndex].total);
+      updateMyStatusCard(myIndex, data.length);
   } else {
       document.getElementById('myStatusCard').style.display = 'none';
   }
@@ -409,7 +370,7 @@ function renderUI() {
   });
 }
 
-// ... باقي الدوال (addPlayer, etc) زي ما هي بدون تغيير ...
+// ... باقي الدوال المساعدة ...
 async function addPlayer() {
   const name = document.getElementById('playerName').value.trim();
   if(!name) return toast('اكتب الاسم', true);
@@ -459,6 +420,8 @@ function smartSkip() {
   }
   showModal(target.name, 'سكيب ذكي 🧠');
 }
+
+// 🔥 زرار الاحتفال (الأكشن اليدوي)
 function calcLeader() {
   const sorted = [...state.players].sort((a,b) => {
     const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
@@ -476,6 +439,7 @@ function calcLeader() {
       }
   }
 }
+
 async function cleanOldRooms() {
   if(!confirm('حذف الغرف القديمة (24س)؟')) return;
   const cutoff = new Date(Date.now() - 86400000);
