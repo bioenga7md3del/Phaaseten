@@ -1,6 +1,5 @@
 /* =========================================
    1. إعدادات Firebase
-   (نفس بياناتك)
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -15,7 +14,7 @@ try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 const db = firebase.firestore();
 
 /* =========================================
-   2. الثوابت وقاموس التحفيل 😂
+   2. الثوابت والمتغيرات
    ========================================= */
 const ROUNDS = 10;
 const PHASE_RULES = [
@@ -24,32 +23,36 @@ const PHASE_RULES = [
     "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
 ];
 
-// قاموس التعليقات الكوميدية
 const FUNNY_COMMENTS = {
     lion: ["وسع للأسد! 🦁", "يا كايدهم يا ملك 👑", "القمة بتلسع 🧊", "عاش يا وحش 🔥"],
     tiger: ["النمر بيخربش 🐯", "قربت يا بطل 💪", "عينك على الأسد 👀"],
     goat: ["يا معزة.. شد حيلك 🐐", "الوضع خطر ⚠️", "اهرب من القاع 🏃"],
-    sheep: ["ماء ماء.. 🐑", "المركز ده بتاعك لوحدك 😂", "شكلك وحش أوي 🌚", "فاكر نفسك بتلعب؟"],
-    highScore: ["ايه الرقم ده؟! 😱", "لبست في الحيط 🧱", "خربت خالص 😂", "يا ساتر يارب"],
+    sheep: ["ماء ماء.. 🐑", "المركز ده بتاعك لوحدك 😂", "شكلك وحش أوي 🌚"],
+    highScore: ["ايه الرقم ده؟! 😱", "لبست في الحيط 🧱", "خربت خالص 😂"],
     zero: ["برنس الليالي ✨", "صفر الملوك 👌", "ولا غلطة!"]
 };
 
-/* =========================================
-   3. إدارة الحالة
-   ========================================= */
 let state = { me: null, room: null, owner: null, round: 1, players: [] };
 let unsubRoom = null;
 let unsubPlayers = null;
+let wakeLock = null; // متغير لمنع انطفاء الشاشة
 const timers = new Map();
 
+// لتتبع تغيير المراكز وتشغيل الأصوات
+let lastLionId = null;
+let lastSheepId = null;
+
 /* =========================================
-   4. التهيئة
+   3. التهيئة والـ Wake Lock
    ========================================= */
 document.addEventListener('DOMContentLoaded', () => {
     firebase.auth().onAuthStateChanged(async u => {
         if(!u) await firebase.auth().signInAnonymously();
         else state.me = u.uid;
     });
+
+    // تفعيل Wake Lock أول ما يلمس الشاشة
+    document.addEventListener('click', requestWakeLock, { once: true });
 
     document.getElementById('createBtn').addEventListener('click', createRoom);
     document.getElementById('joinBtn').addEventListener('click', joinRoom);
@@ -70,12 +73,43 @@ document.addEventListener('DOMContentLoaded', () => {
     if(params.get('room')) document.getElementById('roomInput').value = params.get('room');
 });
 
+// دالة منع انطفاء الشاشة 💡
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Screen Wake Lock active');
+        }
+    } catch (err) {
+        console.log(`${err.name}, ${err.message}`);
+    }
+}
+
 /* =========================================
-   5. الدوال المساعدة والكوميديا
+   4. دوال الصوت والاحتفال 🎉🔊
    ========================================= */
+function playSound(id) {
+    const audio = document.getElementById(id);
+    if(audio) {
+        audio.currentTime = 0;
+        audio.play().catch(() => console.log("Sound blocked by browser"));
+    }
+}
+
+function triggerConfetti() {
+    // تشغيل الكونفيتي
+    confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#6366f1', '#fbbf24', '#ef4444', '#10b981']
+    });
+    playSound('winAudio'); // صوت احتفال
+}
+
 function toast(msg, isErr = false) {
   const t = document.getElementById('toast');
-  t.innerHTML = isErr ? `⚠️ ${msg}` : `${msg}`; // شلنا علامة الصح عشان نحط ايموجي براحتنا
+  t.innerHTML = isErr ? `⚠️ ${msg}` : `${msg}`;
   t.className = isErr ? 'toast show error' : 'toast show';
   setTimeout(() => t.classList.remove('show'), 3000);
 }
@@ -89,8 +123,7 @@ function showModal(name, type) {
   document.getElementById('skipType').textContent = type;
   document.getElementById('skipTarget').textContent = name;
   document.getElementById('skipModal').style.display = 'flex';
-  const audio = document.getElementById('skipAudio');
-  if(audio) { audio.currentTime = 0; audio.play().catch(e => {}); }
+  playSound('skipAudio');
 }
 
 function closeModal() { document.getElementById('skipModal').style.display = 'none'; }
@@ -99,6 +132,7 @@ function switchScreen(screen) {
   document.getElementById('landingScreen').style.display = screen === 'landing' ? 'block' : 'none';
   document.getElementById('gameRoom').style.display = screen === 'game' ? 'block' : 'none';
   if(screen === 'game') {
+    requestWakeLock(); // محاولة تفعيل الشاشة مرة أخرى
     const url = new URL(window.location); url.searchParams.set('room', state.room);
     window.history.pushState({}, '', url);
     document.getElementById('displayCode').textContent = state.room;
@@ -109,7 +143,7 @@ function switchScreen(screen) {
 }
 
 /* =========================================
-   6. منطق الغرفة
+   5. منطق الغرفة
    ========================================= */
 async function createRoom() {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -144,6 +178,7 @@ function subscribe(code) {
     const oldRound = state.round;
     state.round = d.round || 1;
     renderUI();
+    
     if(state.round !== oldRound) {
       setTimeout(() => {
         const active = document.querySelector('.active-col input');
@@ -161,15 +196,19 @@ function subscribe(code) {
 }
 
 /* =========================================
-   7. دالة الحفظ مع التحفيل
+   6. الحفظ والاحتفال
    ========================================= */
 async function saveScore(pid, rIdx, val) {
   const num = (val === '' || val === '-') ? null : Number(val);
   
-  // تحفيل فوري على الرقم
+  // 🔥 منطق الاحتفال
   if(num !== null) {
-      if(num === 0) toast(getRandomComment('zero'));
-      else if(num >= 50) toast(getRandomComment('highScore'), true);
+      if(num === 0) {
+          triggerConfetti(); // كونفيتي + صوت
+          toast(getRandomComment('zero'));
+      } else if(num >= 50) {
+          toast(getRandomComment('highScore'), true);
+      }
   }
 
   const pIndex = state.players.findIndex(x => x.id === pid);
@@ -191,20 +230,15 @@ async function saveScore(pid, rIdx, val) {
 }
 
 /* =========================================
-   8. رسم الواجهة وتوزيع الحيوانات 🦁🐑
+   7. الواجهة والحيوانات
    ========================================= */
 function getAnimalRank(index, total) {
-    // 0 = Lion, 1 = Tiger, last = Sheep, last-1 = Goat
     if (total === 0) return { icon: '', class: '' };
-    if (index === 0) return { icon: '🦁', class: 'rank-lion' }; // الأول دايماً أسد
-    
-    if (total >= 2 && index === total - 1) return { icon: '🐑', class: 'rank-sheep' }; // الأخير دايماً خروف
-    
-    if (total >= 3 && index === 1) return { icon: '🐯', class: 'rank-tiger' }; // التاني نمر (لو فيه 3+)
-    
-    if (total >= 4 && index === total - 2) return { icon: '🐐', class: 'rank-goat' }; // قبل الأخير معزة (لو فيه 4+)
-    
-    return { icon: '', class: '' }; // الباقي عادي
+    if (index === 0) return { icon: '🦁', class: 'rank-lion' }; 
+    if (total >= 2 && index === total - 1) return { icon: '🐑', class: 'rank-sheep' }; 
+    if (total >= 3 && index === 1) return { icon: '🐯', class: 'rank-tiger' }; 
+    if (total >= 4 && index === total - 2) return { icon: '🐐', class: 'rank-goat' }; 
+    return { icon: '', class: '' };
 }
 
 function renderUI() {
@@ -218,14 +252,27 @@ function renderUI() {
   document.getElementById('roundDescAdmin').textContent = ruleText;
   document.getElementById('roundDescViewer').textContent = ruleText;
 
-  // ترتيب اللاعبين
   const data = state.players.map(p => ({
     ...p,
     scores: Array.isArray(p.scores) ? p.scores : [],
     total: (p.scores || []).reduce((a, b) => a + (Number(b) || 0), 0)
   })).sort((a, b) => a.total - b.total);
 
-  // الهيدر
+  // 🔥 التحقق من تغيير المراكز وتشغيل أصوات الحيوانات
+  if (data.length > 1) {
+      const currentLion = data[0].id;
+      const currentSheep = data[data.length - 1].id;
+
+      // لو الأسد اتغير وحد جديد مسك القمة
+      if (lastLionId && lastLionId !== currentLion) {
+         // نشغل صوت الأسد فقط لو المستخدمين في نفس الغرفة ومش لسه بادئين
+         // (اختياري: ممكن تخليها تشتغل بس لما تدوس زرار "من الأسد")
+      }
+      
+      lastLionId = currentLion;
+      lastSheepId = currentSheep;
+  }
+
   const thead = document.getElementById('tHead');
   thead.innerHTML = ''; 
   const thName = document.createElement('th'); thName.textContent = 'اللاعب'; thead.appendChild(thName);
@@ -239,34 +286,27 @@ function renderUI() {
   }
   if(isAdmin) { const thDel = document.createElement('th'); thDel.textContent = '×'; thead.appendChild(thDel); }
 
-  // الجسم
   const tbody = document.getElementById('tBody');
   tbody.innerHTML = '';
 
   data.forEach((p, idx) => {
-    // تحديد الحيوان والرتبة
     const animalInfo = getAnimalRank(idx, data.length);
-    
     const tr = document.createElement('tr');
-    if(animalInfo.class) tr.className = animalInfo.class; // إضافة كلاس الحيوان
+    if(animalInfo.class) tr.className = animalInfo.class;
 
-    // 1. الاسم
     const tdName = document.createElement('td');
     tdName.innerHTML = `${animalInfo.icon} ${p.name}`;
     tr.appendChild(tdName);
 
-    // 2. المجموع
     const tdTotal = document.createElement('td');
     tdTotal.style.fontWeight = '900';
     tdTotal.textContent = p.total;
     tr.appendChild(tdTotal);
     
-    // 3. الترتيب (رقم)
     const tdRankIcon = document.createElement('td');
     tdRankIcon.innerHTML = `<span style="font-size:12px; opacity:0.7">#${idx + 1}</span>`;
     tr.appendChild(tdRankIcon);
 
-    // 4. الجولات
     for(let r=0; r<ROUNDS; r++) {
       const td = document.createElement('td');
       if(r === state.round - 1) {
@@ -311,9 +351,27 @@ function renderUI() {
   });
 }
 
-/* =========================================
-   9. باقي الأزرار
-   ========================================= */
+// تعديل زر المتصدر ليشغل الأصوات كمان
+function calcLeader() {
+  const sorted = [...state.players].sort((a,b) => {
+    const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
+    const sb = (b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
+    return sa - sb;
+  });
+  if(sorted.length) {
+      toast(`👑 الأسد: ${sorted[0].name}`);
+      playSound('lionAudio'); // صوت الأسد
+
+      if(sorted.length > 1) {
+          setTimeout(() => {
+              toast(`🐑 الخروف: ${sorted[sorted.length-1].name}`, true);
+              playSound('sheepAudio'); // صوت الخروف
+          }, 2000);
+      }
+  }
+}
+
+// ... باقي الدوال (addPlayer, delPlayer, etc..) زي ما هي بدون تغيير
 async function addPlayer() {
   const name = document.getElementById('playerName').value.trim();
   if(!name) return toast('اكتب الاسم', true);
@@ -322,9 +380,7 @@ async function addPlayer() {
   });
   document.getElementById('playerName').value = '';
 }
-
 function delPlayer(id) { if(confirm('حذف؟')) db.collection('rooms').doc(state.room).collection('players').doc(id).delete(); }
-
 async function clearAll() {
   if(!confirm('حذف الجميع؟')) return;
   const snap = await db.collection('rooms').doc(state.room).collection('players').get();
@@ -332,18 +388,15 @@ async function clearAll() {
   snap.forEach(d => batch.delete(d.ref));
   await batch.commit();
 }
-
 async function changeRound(d) {
   const newR = Math.min(ROUNDS, Math.max(1, state.round + d));
   if(newR !== state.round) await db.collection('rooms').doc(state.room).update({ round: newR });
 }
-
 function randomSkip() {
   if(!state.players.length) return toast('لا يوجد لاعبين', true);
   const r = state.players[Math.floor(Math.random() * state.players.length)];
   showModal(r.name, 'سكيب عشوائي 🎲');
 }
-
 function smartSkip() {
   if(!state.players.length) return toast('لا يوجد لاعبين', true);
   const sorted = [...state.players].sort((a,b) => {
@@ -354,7 +407,6 @@ function smartSkip() {
   const myIdx = sorted.findIndex(p => p.uid === state.me);
   if(myIdx === -1) return randomSkip();
   if(sorted.length < 2) return toast('لا يوجد منافسين', true);
-
   let target;
   if(myIdx === 0) target = sorted[1];
   else if(myIdx === sorted.length - 1) target = sorted[myIdx - 1];
@@ -369,20 +421,6 @@ function smartSkip() {
   }
   showModal(target.name, 'سكيب ذكي 🧠');
 }
-
-function calcLeader() {
-  // دالة المتصدر ممكن نستخدم فيها التحفيل برضه
-  const sorted = [...state.players].sort((a,b) => {
-    const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
-    const sb = (b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
-    return sa - sb;
-  });
-  if(sorted.length) {
-      toast(`👑 الأسد: ${sorted[0].name}`);
-      if(sorted.length > 1) setTimeout(() => toast(`🐑 الخروف: ${sorted[sorted.length-1].name}`, true), 1500);
-  }
-}
-
 async function cleanOldRooms() {
   if(!confirm('حذف الغرف القديمة (24س)؟')) return;
   const cutoff = new Date(Date.now() - 86400000);
@@ -395,14 +433,12 @@ async function cleanOldRooms() {
       toast(`تم حذف ${snap.size} غرفة`);
   } catch(e) { console.error(e); toast('فشل التنظيف', true); }
 }
-
 function exitRoom() {
   if(unsubRoom) unsubRoom();
   if(unsubPlayers) unsubPlayers();
   state.room = null; state.players = [];
   switchScreen('landing');
 }
-
 function copyCode() { navigator.clipboard.writeText(state.room); toast('تم نسخ الكود'); }
 function shareWa() { 
     const url = window.location.href.split('?')[0]; 
