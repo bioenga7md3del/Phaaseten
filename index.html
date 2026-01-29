@@ -81,23 +81,17 @@
                 <button id="resetGameBtn" class="btn-secondary">🔄 تصفير</button>
                 <button id="startGameBtn" class="btn-main flex-grow">⚽ ابدأ المباراة</button>
             </div>
-            
             <div class="admin-actions-row" style="margin-top:5px;">
                 <button id="lobbyChangeAdminBtn" class="btn-glass flex-grow" style="color:var(--gold); border-color:var(--gold);">🔑 نقل الأدمن</button>
                 <button id="syncPlayersBtn" class="btn-info flex-grow">📥 استدعاء الكل</button>
             </div>
-            
-            <button onclick="openFameModalForce()" class="btn-glass full-width" style="margin-top:5px; border:1px solid #fbbf24; color:#fbbf24; background:rgba(251, 191, 36, 0.1);">
-                🏆 لوحة الشرف (اضغط هنا)
-            </button>
-
             <div class="admin-actions-row" style="margin-top:5px;">
                 <button id="factoryResetBtn" class="btn-danger-text flex-grow">☢️ مسح شامل (إصلاح)</button>
             </div>
         </div>
         
-        <div class="shared-footer-actions" id="normalPlayerActions">
-             <button onclick="openFameModalForce()" class="btn-glass full-width" style="margin-top:10px;">🏆 ترتيب الدوري العام</button>
+        <div class="shared-footer-actions">
+             <button id="showFameBtn" class="btn-glass full-width" style="margin-top:10px;">🏆 ترتيب الدوري العام</button>
         </div>
         
         <div id="playerWaitingMsg" style="text-align:center; margin-top:20px; display:none;">
@@ -107,7 +101,6 @@
     </div>
 
     <div id="gameRoom" class="screen-container" style="display:none;">
-      
       <div class="game-header-card">
           <div class="header-top">
               <div class="round-badge">
@@ -116,21 +109,17 @@
               </div>
               <div class="header-actions">
                   <button id="viewFullTableBtn" class="btn-icon-glass">📊</button>
-                  
                   <div style="position:relative;">
                       <button id="adminBackToLobbyBtn" class="btn-icon-glass" style="display:none; background:rgba(251, 191, 36, 0.2); color:var(--gold);">🏠</button>
                       <div id="adminNotificationDot" class="notification-dot" style="display:none;"></div>
                   </div>
-
                   <button id="waBtn" class="btn-icon-glass success-color">💬</button>
                   <button id="leaveGameBtn" class="btn-icon-glass danger-color">✕</button>
               </div>
           </div>
-          
           <div class="round-description">
               <span id="roundDesc">-- مطلوب --</span>
           </div>
-
           <div id="adminGameControls" class="admin-round-nav" style="display:none;">
               <button id="prevRoundBtn" class="nav-arrow">❮</button>
               <span style="font-size:12px; opacity:0.7">تغيير الجولة</span>
@@ -140,7 +129,7 @@
 
       <div class="glass-panel" style="padding: 10px; margin-bottom: 15px;">
         <div class="row-btns">
-          <button onclick="openFameModalForce()" class="btn-glass flex-grow">👑 الترتيب</button>
+          <button id="leaderBtn" class="btn-glass flex-grow">👑 الترتيب</button>
           <button id="randomSkipBtn" class="btn-glass flex-grow">🎲 عشوائي</button>
           <button id="smartSkipBtn" class="btn-purple flex-grow">🧠 ذكي</button>
         </div>
@@ -165,23 +154,11 @@
     </div>
   </div>
 
-  <div id="fameModal" class="modal-overlay" style="display:none; z-index:99999 !important;">
-      <div class="modal-content table-modal" style="background:#1e293b; border:1px solid #fbbf24;">
-          <div class="modal-header">
-              <h3 style="color:var(--gold)">🏆 ترتيب الدوري العام</h3>
-              <button onclick="document.getElementById('fameModal').style.display='none'" class="close-icon">✕</button>
-          </div>
-          <div id="fameList" class="fame-list">
-              <div style="text-align:center; padding:20px;">⏳ لحظة واحدة...</div>
-          </div>
-      </div>
-  </div>
-
   <div id="fullTableModal" class="modal-overlay" style="display:none;">
       <div class="modal-content table-modal">
           <div class="modal-header">
               <h3>📊 الجدول الكامل</h3>
-              <button onclick="document.getElementById('fullTableModal').style.display='none'" class="close-icon">✕</button>
+              <button id="closeFullTableBtn" class="close-icon">✕</button>
           </div>
           <div class="table-scroll"><table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table></div>
       </div>
@@ -198,6 +175,16 @@
               <button id="saveProfileChangesBtn" class="btn-success">حفظ</button>
           </div>
           <button id="closeProfileModalBtn" class="btn-text">إلغاء</button>
+      </div>
+  </div>
+
+  <div id="fameModal" class="modal-overlay" style="display:none; z-index:9999;">
+      <div class="modal-content table-modal">
+          <div class="modal-header">
+              <h3 style="color:var(--gold)">🏆 ترتيب الدوري العام</h3>
+              <button id="closeFameBtn" class="close-icon">✕</button>
+          </div>
+          <div id="fameList" class="fame-list"></div>
       </div>
   </div>
 
@@ -235,73 +222,5 @@
   <audio id="winAudio" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
 
   <script src="script.js"></script>
-
-  <script>
-    function openFameModalForce() {
-        const modal = document.getElementById('fameModal');
-        const list = document.getElementById('fameList');
-        
-        // 1. افتح المودال فوراً
-        if(modal) {
-            modal.style.display = 'flex';
-        } else {
-            alert('خطأ: المودال غير موجود!');
-            return;
-        }
-
-        // 2. هات البيانات
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:#fbbf24;">جاري جلب الأبطال... 🦁</div>';
-
-        firebase.firestore().collection('users').get().then(snap => {
-            if (snap.empty) {
-                list.innerHTML = '<div style="text-align:center">لا يوجد بيانات</div>';
-                return;
-            }
-            
-            let users = [];
-            snap.forEach(doc => {
-                const d = doc.data();
-                users.push({ 
-                    name: d.name || 'مجهول', 
-                    avatar: d.avatar || '👤',
-                    lion: d.lionCount || 0,
-                    sheep: d.sheepCount || 0,
-                    tiger: d.tigerCount || 0,
-                    games: d.gamesPlayed || 0
-                });
-            });
-
-            // رتبهم: الأسد أولاً
-            users.sort((a, b) => b.lion - a.lion);
-
-            let html = '';
-            let rank = 1;
-            users.forEach(u => {
-                let title = "";
-                if (u.games > 0) {
-                    if (u.lion > u.sheep && u.lion >= 2) title = "👑 ملك";
-                    else if (u.sheep > u.lion && u.sheep >= 2) title = "🌱 صديق البيئة";
-                }
-
-                html += `
-                <div class="fame-item" style="background:rgba(255,255,255,0.05); padding:10px; margin-bottom:8px; border-radius:10px; display:flex; align-items:center;">
-                    <div style="font-weight:900; width:30px; color:#94a3b8;">#${rank++}</div>
-                    <div style="flex:1;">
-                        <div style="font-weight:bold;">${u.avatar} ${u.name} <span style="font-size:10px; color:#fbbf24;">${title}</span></div>
-                        <div style="font-size:11px; color:#aaa; margin-top:2px;">
-                            🦁 ${u.lion} | 🐯 ${u.tiger} | 🐑 ${u.sheep}
-                        </div>
-                    </div>
-                    <div style="font-size:10px; opacity:0.6;">${u.games} جيم</div>
-                </div>`;
-            });
-            
-            list.innerHTML = html;
-        }).catch(err => {
-            console.error(err);
-            list.innerHTML = '<div style="color:red; text-align:center">فشل الاتصال بالسيرفر</div>';
-        });
-    }
-  </script>
 </body>
 </html>
