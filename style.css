@@ -1,4 +1,4 @@
-/* ===== (نفس المتغيرات والأساسيات السابقة بدون تغيير) ===== */
+/* نفس المتغيرات */
 :root {
   --bg-dark: #0f172a; --bg-card: rgba(30, 41, 59, 0.7); --primary: #6366f1;
   --accent: #10b981; --danger: #ef4444; --gold: #fbbf24;
@@ -15,7 +15,6 @@ body {
 }
 .container { max-width: 1000px; margin: 0 auto; }
 
-/* الكروت */
 .glass-card {
   background: var(--bg-card); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 20px;
@@ -23,60 +22,54 @@ body {
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ===== شبكة الأفاتار (Avatar Grid) ===== */
-.avatar-grid {
-    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 15px 0;
-}
-.avatar-option {
-    background: rgba(255,255,255,0.05); border: 2px solid transparent; border-radius: 10px;
-    font-size: 24px; padding: 10px; cursor: pointer; text-align: center; transition: 0.2s;
-}
+.avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 15px 0; }
+.avatar-option { background: rgba(255,255,255,0.05); border: 2px solid transparent; border-radius: 10px; font-size: 24px; padding: 10px; cursor: pointer; text-align: center; transition: 0.2s; }
 .avatar-option:hover { background: rgba(255,255,255,0.1); }
 .avatar-option.selected { border-color: var(--accent); background: rgba(16, 185, 129, 0.1); transform: scale(1.1); }
 
-/* ===== بادج البروفايل (Profile Badge) ===== */
-.user-profile-badge {
-    display: flex; align-items: center; gap: 10px;
-    background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 50px; border: 1px solid var(--border);
-}
+.user-profile-badge { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 50px; border: 1px solid var(--border); }
 
-/* كارت الحالة */
 .status-card { display: flex; align-items: center; gap: 15px; padding: 15px; border-width: 2px; transition: all 0.3s ease; margin-bottom: 15px; }
 .status-emoji { font-size: 45px; line-height: 1; }
 .status-content h3 { margin: 0 0 5px 0; font-size: 18px; font-weight: 900; }
 .status-content p { margin: 0; font-size: 14px; font-weight: 600; opacity: 0.9; }
-.status-lion { background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--gold); }
-.status-lion h3 { color: var(--gold); }
-.status-tiger { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--tiger); }
-.status-tiger h3 { color: var(--tiger); }
-.status-goat { background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--goat); }
-.status-goat h3 { color: var(--goat); }
-.status-sheep { background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--sheep); }
-.status-sheep h3 { color: var(--sheep); }
+
+/* ألوان الحيوانات */
+.status-lion, .lion-badge { color: var(--gold); border-color: var(--gold); }
+.status-lion { background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(15, 23, 42, 0.8)); }
+
+.status-tiger, .tiger-badge { color: var(--tiger); border-color: var(--tiger); }
+.status-tiger { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(15, 23, 42, 0.8)); }
+
+.status-goat, .goat-badge { color: var(--goat); border-color: var(--goat); }
+.status-goat { background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(15, 23, 42, 0.8)); }
+
+.status-sheep, .sheep-badge { color: var(--sheep); border-color: var(--sheep); }
+.status-sheep { background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(15, 23, 42, 0.8)); }
+
 .status-normal { background: var(--bg-card); border-color: var(--border); }
 .status-normal h3 { color: var(--text-muted); }
 
-/* القوائم */
 .lobby-list { display: grid; gap: 10px; max-height: 400px; overflow-y: auto; }
 .lobby-item { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; border: 1px solid var(--border); transition: 0.2s; cursor: pointer; }
 .lobby-item.selected { background: rgba(16, 185, 129, 0.2); border-color: var(--accent); }
 .lobby-name { font-weight: 700; display: flex; align-items: center; gap: 10px; }
 .check-indicator { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--text-muted); display: flex; align-items: center; justify-content: center; }
 .lobby-item.selected .check-indicator { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 .bench-list { display: grid; gap: 8px; margin-top: 15px; max-height: 200px; overflow-y: auto; }
 .bench-item { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; }
 .bench-item:hover { background: rgba(99, 102, 241, 0.2); }
 
-/* اللوحة (Fame) */
-.fame-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; text-align: right; }
-.fame-item { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
-.fame-date { font-size: 11px; color: var(--text-muted); text-align: left; }
-.fame-row { display: flex; align-items: center; justify-content: space-between; font-weight: 700; margin-top: 5px; }
-.lion-badge { color: var(--gold); }
-.sheep-badge { color: var(--sheep); }
+/* لوحة الشرف الجديدة */
+.fame-list { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; text-align: right; }
+.fame-item { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 15px; position: relative; }
+.fame-date { font-size: 11px; color: var(--text-muted); position: absolute; top: 10px; left: 10px; }
+.fame-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-weight: 700; font-size: 14px; }
+.fame-comment { font-size: 11px; color: var(--text-muted); font-weight: normal; margin-right: 5px; }
 .score-badge { background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; }
 
-/* عناصر عامة */
+/* General */
 h1 { margin: 0 0 10px 0; font-size: 28px; font-weight: 900; text-align: center; background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; user-select: none; }
 .landing-header { text-align: center; margin-bottom: 20px; }
 .emoji-icon { font-size: 40px; margin-bottom: 10px; }
