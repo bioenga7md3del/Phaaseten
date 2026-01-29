@@ -2,6 +2,7 @@
   --bg-dark: #0f172a; --bg-panel: #1e293b; --primary: #6366f1; --primary-glow: rgba(99, 102, 241, 0.4);
   --accent: #10b981; --danger: #ef4444; --gold: #fbbf24; --tiger: #f97316; --goat: #94a3b8; --sheep: #f43f5e;
   --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1); --glass: rgba(30, 41, 59, 0.7);
+  --info: #0ea5e9;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { font-family: 'Cairo', sans-serif; background: var(--bg-dark); color: var(--text); margin: 0; padding: 0; min-height: 100vh; overflow-x: hidden; padding-bottom: 140px; }
@@ -67,7 +68,6 @@ body { font-family: 'Cairo', sans-serif; background: var(--bg-dark); color: var(
 .card-goat .p-score-box { color: var(--goat); border: 1px solid var(--goat); }
 .card-body { background: rgba(0,0,0,0.2); border-top: 1px solid var(--border); padding: 15px; display: none; }
 .card-body.open { display: block; animation: slideDown 0.3s ease; }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Inputs & Buttons */
 .input-area { text-align: center; margin-bottom: 15px; }
@@ -89,6 +89,7 @@ button { border: none; padding: 14px; border-radius: 12px; font-family: inherit;
 .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); }
 .btn-text { background: none; border: none; color: var(--text-muted); margin-top: 10px; width: 100%; }
 .btn-glass { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px; border-radius: 12px; }
+.btn-info { background: var(--info); border: none; color: #fff; padding: 10px; border-radius: 12px; }
 .btn-danger-text { background: none; border: 1px dashed var(--danger); color: var(--danger); padding: 10px; border-radius: 12px; width: 100%; margin-top: 10px; }
 .btn-purple { background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border: none; color: #fff; padding: 10px; border-radius: 12px; font-weight: 700; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); }
 .btn-purple:active { transform: translateY(2px); box-shadow: none; }
