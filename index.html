@@ -40,7 +40,7 @@
     <div id="registerScreen" class="glass-panel centered-panel" style="display:none;">
         <div class="panel-header">
             <h1>حساب جديد 📝</h1>
-            <p>اختر شخصيتك</p>
+            <p>سجل عشان إحصائياتك تتحفظ!</p>
         </div>
         <div class="input-stack">
             <input id="regName" placeholder="الاسم (اللقب)">
@@ -88,7 +88,7 @@
         </div>
         
         <div class="shared-footer-actions">
-             <button id="showFameBtn" class="btn-glass full-width" style="margin-top:10px;">🏆 سجل الأبطال</button>
+             <button id="showFameBtn" class="btn-glass full-width" style="margin-top:10px;">🏆 ترتيب الدوري العام</button>
         </div>
         
         <div id="playerWaitingMsg" style="text-align:center; margin-top:20px; display:none;">
@@ -108,7 +108,11 @@
               <div class="header-actions">
                   <button id="viewFullTableBtn" class="btn-icon-glass">📊</button>
                   <button id="waBtn" class="btn-icon-glass success-color">💬</button>
-                  <button id="leaveGameBtn" class="btn-icon-glass danger-color">✕</button>
+                  
+                  <div style="position:relative;">
+                      <button id="leaveGameBtn" class="btn-icon-glass danger-color">✕</button>
+                      <div id="adminNotificationDot" class="notification-dot" style="display:none;"></div>
+                  </div>
               </div>
           </div>
           <div class="round-description">
@@ -142,10 +146,9 @@
       <div id="adminFinishControls" class="floating-bottom-actions" style="display:none;">
           <div class="row-btns">
             <button id="gameChangeAdminBtn" class="btn-glass" style="color:var(--gold); border-color:var(--gold);">🔑 الأدمن</button>
-            <button id="finishGameBtn" class="btn-danger flex-grow">إنهاء وحفظ 💾</button>
+            <button id="finishGameBtn" class="btn-danger flex-grow">إنهاء وحفظ النتيجة 💾</button>
           </div>
       </div>
-
     </div>
   </div>
 
@@ -174,10 +177,12 @@
   </div>
 
   <div id="fameModal" class="modal-overlay">
-      <div class="modal-content">
-          <h3>🏆 قاعة الأساطير</h3>
+      <div class="modal-content table-modal">
+          <div class="modal-header">
+              <h3 style="color:var(--gold)">🏆 ترتيب الدوري العام</h3>
+              <button id="closeFameBtn" class="close-icon">✕</button>
+          </div>
           <div id="fameList" class="fame-list"></div>
-          <button id="closeFameBtn" class="btn-main full-width">إغلاق</button>
       </div>
   </div>
 
