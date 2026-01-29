@@ -526,3 +526,48 @@ function showModal(n,t) { document.getElementById('skipType').textContent=t; doc
 function toast(m, e=false) { const t=document.getElementById('toast'); t.innerHTML=m; t.className=e?'toast show error':'toast show'; setTimeout(()=>t.classList.remove('show'),3000); }
 function shareWa() { window.open(`https://wa.me/?text=${encodeURIComponent(`يلا Phase 10 🔥\n${window.location.href}`)}`); }
 function switchScreen(s) { ['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; }); if(s==='login') document.getElementById('loginScreen').style.display='block'; if(s==='register') document.getElementById('registerScreen').style.display='block'; if(s==='lobby') document.getElementById('lobbyScreen').style.display='block'; if(s==='game') document.getElementById('gameRoom').style.display='block'; }
+
+
+
+// 🔥 دالة القوة الجبرية لفتح اللوحة 🔥
+function openFameModalForce() {
+    // 1. إجبار المودال على الظهور فوراً
+    const modal = document.getElementById('fameModal');
+    const list = document.getElementById('fameList');
+    
+    if (modal) {
+        modal.style.display = 'flex'; // أظهر الشباك
+        modal.style.zIndex = "9999";  // تأكد إنه فوق كل حاجة
+    } else {
+        alert("يا هندسة كود المودال مش موجود في الـ HTML!");
+        return;
+    }
+
+    // 2. محاولة جلب البيانات
+    list.innerHTML = '<h4 style="text-align:center; color:white;">جاري التحميل...</h4>';
+
+    db.collection('users').orderBy('lionCount', 'desc').get()
+    .then(snap => {
+        if (snap.empty) {
+            list.innerHTML = '<h4 style="text-align:center">مفيش داتا لسه</h4>';
+            return;
+        }
+        
+        let html = '';
+        let rank = 1;
+        snap.forEach(doc => {
+            const u = doc.data();
+            html += `
+            <div style="background:rgba(255,255,255,0.1); padding:10px; margin-bottom:5px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold; color:#fbbf24; width:30px;">#${rank++}</span>
+                <span style="text-align:right; flex:1; color:white;">${u.name}</span>
+                <span style="font-size:12px; color:#ccc;">🦁 ${u.lionCount || 0} | 🐑 ${u.sheepCount || 0}</span>
+            </div>`;
+        });
+        list.innerHTML = html;
+    })
+    .catch(err => {
+        console.error(err);
+        list.innerHTML = '<h4 style="color:red; text-align:center">خطأ في النت</h4>';
+    });
+}
