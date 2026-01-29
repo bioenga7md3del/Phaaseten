@@ -9,11 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="style.css">
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
@@ -43,11 +45,14 @@
         </div>
         <div class="input-group">
             <input id="regName" placeholder="اسم الشهرة (مثلاً: العالمي)">
+            
             <label style="font-size:14px; color:var(--text-muted); margin-bottom:-5px;">اختر الأفاتار:</label>
             <div id="avatarGrid" class="avatar-grid"></div>
             <input type="hidden" id="selectedAvatar" value="👤">
+
             <input id="regEmail" type="email" placeholder="البريد الإلكتروني" style="direction:ltr; text-align:left;">
             <input id="regPass" type="password" placeholder="كلمة المرور" style="direction:ltr; text-align:left;">
+            
             <button id="doRegisterBtn" class="btn-success full-width-btn">تسجيل حساب جديد ✨</button>
         </div>
         <p style="text-align:center; font-size:13px; margin-top:15px; color:var(--text-muted)">
@@ -110,7 +115,7 @@
             </div>
             <button id="nextRoundBtn" class="btn-glass nav-btn">❯</button>
           </div>
-          <button id="gameChangeAdminBtn" class="btn-glass full-width-btn" style="margin-top:10px; font-size:12px;">🔑 تغيير الأدمن</button>
+          <button id="changeAdminBtn" class="btn-glass full-width-btn" style="margin-top:10px; font-size:12px;">🔑 تغيير الأدمن</button>
         </div>
         
         <div id="viewerControls" class="viewer-controls" style="display:none;">
@@ -152,10 +157,13 @@
           <h3>تعديل الملف الشخصي</h3>
           <div class="input-group">
               <input id="editName" placeholder="الاسم الجديد">
+              
               <label style="font-size:12px; color:var(--text-muted)">تغيير الأفاتار:</label>
               <div id="editAvatarGrid" class="avatar-grid"></div>
               <input type="hidden" id="editSelectedAvatar">
+              
               <input id="editPass" type="password" placeholder="كلمة مرور جديدة (اختياري)">
+              
               <button id="saveProfileChangesBtn" class="btn-success full-width-btn">حفظ التعديلات 💾</button>
           </div>
           <button id="closeProfileModalBtn" class="btn-danger full-width-btn" style="margin-top:10px">إلغاء</button>
