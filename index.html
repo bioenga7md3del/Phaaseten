@@ -42,19 +42,15 @@
             <h1>حساب جديد 📝</h1>
             <p>اختر شخصيتك</p>
         </div>
-        
         <div class="input-stack">
             <input id="regName" placeholder="الاسم (اللقب)">
-            
             <div class="avatar-selector">
                 <label>اختر الأفاتار:</label>
                 <div id="avatarGrid" class="avatar-grid"></div>
                 <input type="hidden" id="selectedAvatar" value="👤">
             </div>
-
             <input id="regEmail" type="email" placeholder="البريد الإلكتروني" dir="ltr">
             <input id="regPass" type="password" placeholder="كلمة المرور" dir="ltr">
-            
             <button id="doRegisterBtn" class="btn-success">تسجيل الحساب ✨</button>
         </div>
         <div class="panel-footer">
@@ -80,16 +76,24 @@
             <div id="onlinePlayersList" class="lobby-list"></div>
         </div>
 
-        <div id="adminLobbyControls" class="floating-bottom-actions" style="display:none;">
+        <div id="adminLobbyControls" class="floating-admin-actions" style="display:none;">
             <div class="admin-actions-row">
                 <button id="resetGameBtn" class="btn-secondary">🔄 تصفير</button>
                 <button id="startGameBtn" class="btn-main flex-grow">⚽ ابدأ المباراة</button>
             </div>
-            <button id="factoryResetBtn" class="btn-danger-text">☢️ فرمتة المصنع</button>
+            <div class="admin-actions-row" style="margin-top:5px;">
+                <button id="lobbyChangeAdminBtn" class="btn-glass flex-grow" style="border-color:var(--gold); color:var(--gold);">🔑 نقل الأدمن</button>
+                <button id="factoryResetBtn" class="btn-danger-text flex-grow">☢️ مسح شامل</button>
+            </div>
         </div>
         
-        <div id="playerLobbyControls" class="floating-bottom-actions">
-             <button id="showFameBtn" class="btn-glass full-width">🏆 سجل الأبطال</button>
+        <div class="shared-footer-actions">
+             <button id="showFameBtn" class="btn-glass full-width" style="margin-top:10px;">🏆 سجل الأبطال</button>
+        </div>
+        
+        <div id="playerWaitingMsg" style="text-align:center; margin-top:20px; display:none;">
+            <div class="loader-spinner">⏳</div>
+            <p>في انتظار بدء المباراة...</p>
         </div>
     </div>
 
@@ -127,13 +131,12 @@
           </div>
       </div>
 
-      <div id="cardsContainer" class="cards-list">
-          </div>
+      <div id="cardsContainer" class="cards-list"></div>
       
       <div id="adminFinishControls" class="floating-bottom-actions" style="display:none;">
           <div class="row-btns">
-            <button id="gameChangeAdminBtn" class="btn-glass">🔑 الأدمن</button>
-            <button id="finishGameBtn" class="btn-danger flex-grow">إنهاء وحفظ النتيجة 💾</button>
+            <button id="gameChangeAdminBtn" class="btn-glass" style="border-color:var(--gold); color:var(--gold);">🔑 الأدمن</button>
+            <button id="finishGameBtn" class="btn-danger flex-grow">إنهاء وحفظ 💾</button>
           </div>
       </div>
 
@@ -147,10 +150,7 @@
               <button id="closeFullTableBtn" class="close-icon">✕</button>
           </div>
           <div class="table-scroll">
-            <table id="scoreTable">
-              <thead><tr id="tHead"></tr></thead>
-              <tbody id="tBody"></tbody>
-            </table>
+            <table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table>
           </div>
       </div>
   </div>
