@@ -62,7 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
     safeClick('openProfileBtn', openProfileModal);
     safeClick('saveProfileChangesBtn', saveProfileChanges);
     safeClick('closeProfileModalBtn', () => document.getElementById('profileModal').style.display='none');
-    safeClick('startGameBtn', startGame);
+    
+    // الزرار الذكي (بيشتغل start أو resume)
+    safeClick('startGameBtn', handleStartOrResumeGame);
+    
     safeClick('resetGameBtn', resetGame);
     safeClick('factoryResetBtn', adminFactoryReset);
     safeClick('showFameBtn', showHallOfFame);
@@ -112,11 +115,12 @@ async function loadUserProfile(uid) { try{const d=await db.collection('users').d
 async function logoutUser() { if(state.me) try{await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).delete();}catch(e){} await auth.signOut(); switchScreen('login'); }
 
 /* =========================================
-   5. اللوبي والمنطق
+   5. اللوبي والمنطق (تم تعديل RenderLobby و Subscribe)
    ========================================= */
 async function enterGlobalLobby() {
     const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
     if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    
     await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
         name: state.userData.name, avatar: state.userData.avatar, uid: state.me, scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
@@ -131,37 +135,80 @@ function subscribe() {
         if(!d.admin) db.collection('rooms').doc(GAME_ID).update({ admin: state.me });
         state.round = d.round || 1; state.status = d.status || 'lobby';
         
+        // التعديل: لا نجبر الأدمن على الدخول لو هو اختار يخرج للوبي
+        // بنعمل ريندر بس، والزرار هو اللي هيقرر
         if(state.status === 'playing') {
             const mePlayer = state.players.find(p => p.uid === state.me);
-            if (mePlayer && mePlayer.status === 'active') { switchScreen('game'); renderGameUI(); }
-            else { switchScreen('lobby'); document.getElementById('lobbySubtitle').textContent = ""; document.getElementById('waitingText').textContent = "🚨 المباراة جارية! تواصل مع الأدمن لإدخالك"; renderLobby(); }
-        } else { switchScreen('lobby'); document.getElementById('waitingText').textContent = "في انتظار بدء المباراة..."; renderLobby(); }
+            // لو أنا لاعب نشط، والصفحة الحالية مش اللوبي (عشان ماسحبش الأدمن غصب عنه)
+            const currentScreen = document.getElementById('gameRoom').style.display;
+            
+            // لو أنا مش أدمن، اسحبني فوراً
+            if (!state.isAdmin && mePlayer && mePlayer.status === 'active') { 
+                switchScreen('game'); renderGameUI(); 
+            } 
+            // لو أنا أدمن، بحدث الـ UI في الخلفية
+            else {
+               renderLobby();
+               if(currentScreen === 'block') renderGameUI(); // لو أنا في الجيم حدث الجيم
+            }
+        } else { 
+            switchScreen('lobby'); 
+            document.getElementById('waitingText').textContent = "في انتظار بدء المباراة..."; 
+            renderLobby(); 
+        }
     });
 
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
         state.players = []; snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
-        if(state.status === 'playing') {
-            renderGameUI();
-            // 🔥 نظام التنبيهات للأدمن (Red Dot)
-            if(state.isAdmin) {
-                const waiting = state.players.filter(p => p.status === 'waiting');
-                const dot = document.getElementById('adminNotificationDot');
-                if(dot) dot.style.display = waiting.length > 0 ? 'block' : 'none';
-            }
-        } else {
-            renderLobby();
+        
+        // تحديث الشاشة الحالية أياً كانت
+        if(document.getElementById('gameRoom').style.display === 'block') renderGameUI();
+        if(document.getElementById('lobbyScreen').style.display === 'block') renderLobby();
+        
+        // نظام التنبيه (Red Dot)
+        if(state.isAdmin && state.status === 'playing') {
+            const waiting = state.players.filter(p => p.status === 'waiting');
+            const dot = document.getElementById('adminNotificationDot');
+            if(dot) dot.style.display = waiting.length > 0 ? 'block' : 'none';
         }
     });
 }
 
+// 🔥🔥 هنا التعديل المهم لحل مشكلة الزرار 🔥🔥
 function renderLobby() {
     const list = document.getElementById('onlinePlayersList'); if(!list) return; list.innerHTML = '';
     const adminPanel = document.getElementById('adminLobbyControls');
     const waitMsg = document.getElementById('playerWaitingMsg');
+    
+    // 1. التحكم في الظهور
     if(adminPanel) adminPanel.style.display = state.isAdmin ? 'flex' : 'none';
     if(waitMsg) waitMsg.style.display = state.isAdmin ? 'none' : 'block';
-    if(state.isAdmin) document.getElementById('lobbySubtitle').textContent = '👑 اختر التشكيلة الأساسية:';
+    
+    // 2. تغيير نص ووظيفة زرار البدء للأدمن
+    const startBtn = document.getElementById('startGameBtn');
+    if (state.isAdmin && startBtn) {
+        if (state.status === 'playing') {
+            startBtn.textContent = "↩️ العودة للمباراة الجارية";
+            startBtn.className = "btn-secondary flex-grow"; // لون مختلف لتمييز العودة
+            startBtn.style.border = "1px solid var(--accent)";
+            startBtn.style.color = "var(--accent)";
+            document.getElementById('lobbySubtitle').textContent = "⚠️ المباراة جارية الآن";
+        } else {
+            startBtn.textContent = "⚽ ابدأ المباراة";
+            startBtn.className = "btn-main flex-grow";
+            startBtn.style.border = "none";
+            startBtn.style.color = "#fff";
+            document.getElementById('lobbySubtitle').textContent = "👑 اختر التشكيلة الأساسية:";
+        }
+    } else {
+        // للاعب العادي
+        if (state.status === 'playing') {
+            document.getElementById('waitingText').textContent = "🚨 المباراة جارية! اطلب من الأدمن يدخلك";
+            document.getElementById('lobbySubtitle').textContent = "";
+        }
+    }
 
+    // 3. رسم القائمة
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
     sorted.forEach(p => {
         const item = document.createElement('div');
@@ -172,6 +219,18 @@ function renderLobby() {
         if(state.isAdmin) item.onclick = () => togglePlayerStatus(p);
         list.appendChild(item);
     });
+}
+
+// 🔥 دالة ذكية للتعامل مع زرار البدء/العودة
+function handleStartOrResumeGame() {
+    if (state.status === 'playing') {
+        // لو اللعبة شغالة، رجعني فوراً ومحلياً (بدون فيربيز)
+        switchScreen('game');
+        renderGameUI();
+    } else {
+        // لو اللعبة مش شغالة، ابدأها في الداتا بيز
+        startGame();
+    }
 }
 
 async function togglePlayerStatus(p) {
@@ -198,6 +257,13 @@ async function togglePlayerStatus(p) {
 async function startGame() {
     const activeCount = state.players.filter(p => p.status === 'active').length;
     if(activeCount < 1) return toast('اختر لاعب واحد', true);
+    
+    // التأكد إن الأدمن مش ناسي نفسه
+    const me = state.players.find(p => p.uid === state.me);
+    if(me && me.status !== 'active') {
+        if(!confirm('تحذير: أنت (الأدمن) خارج التشكيلة! هل تريد البدء كمشاهد؟')) return;
+    }
+    
     await db.collection('rooms').doc(GAME_ID).update({ status: 'playing' });
 }
 
@@ -281,11 +347,10 @@ function getAnimalRank(i, t) { if(i===0) return {icon:'🦁', class:'rank-lion'}
 function updateMyStatusCard(idx, total) { const c=document.getElementById('myStatusCard'); const m=document.getElementById('statusMsg'); const e=document.getElementById('statusEmoji'); const t=document.getElementById('statusTitle'); let type='normal', icon='😐', lbl='عادي'; if(total>0 && idx===0) { type='lion'; icon='🦁'; lbl='الأسد'; } else if(total>=2 && idx===total-1) { type='sheep'; icon='🐑'; lbl='الخروف'; } const txts = STATUS_MSGS[type] || STATUS_MSGS['normal']; m.textContent = txts[Math.floor(Math.random()*txts.length)]; e.textContent=icon; t.textContent=lbl; c.style.display='flex'; }
 function openFullTable() { const active = state.players.filter(p => p.status === 'active').sort((a,b)=>((a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0)-(b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0))); const thead = document.getElementById('tHead'); thead.innerHTML = ''; ['اللاعب','مجموع'].forEach(t=>{const th=document.createElement('th'); th.textContent=t; thead.appendChild(th)}); for(let i=1; i<=ROUNDS; i++) { const th=document.createElement('th'); th.textContent=i; if(i===state.round) th.className='active-col'; thead.appendChild(th); } const tbody = document.getElementById('tBody'); tbody.innerHTML = ''; active.forEach((p, idx) => { const tr = document.createElement('tr'); const tdName = document.createElement('td'); tdName.textContent = p.name; tr.appendChild(tdName); const tdTotal = document.createElement('td'); tdTotal.textContent = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0); tr.appendChild(tdTotal); for(let r=0; r<ROUNDS; r++) { const td = document.createElement('td'); td.textContent = (p.scores[r]!==null && p.scores[r]!==undefined) ? p.scores[r] : ''; tr.appendChild(td); } tbody.appendChild(tr); }); document.getElementById('fullTableModal').style.display = 'flex'; }
 
-// 🔥 حفظ الإحصائيات التراكمية (Career Stats)
+// 🔥 حفظ الإحصائيات (Career Stats)
 async function finishGameAndSave() {
     if(!confirm('إنهاء المباراة وحفظ الإحصائيات؟')) return;
     
-    // 1. حساب الترتيب الحالي
     const active = state.players.filter(p => p.status === 'active').sort((a,b) => {
         const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
         const sb = (b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
@@ -297,7 +362,6 @@ async function finishGameAndSave() {
 
     const batch = db.batch();
 
-    // 2. تحديث إحصائيات كل لاعب في حسابه الأصلي (users collection)
     active.forEach((p, index) => {
         const userRef = db.collection('users').doc(p.uid);
         const totalScore = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0);
@@ -307,56 +371,41 @@ async function finishGameAndSave() {
             accumulatedScore: firebase.firestore.FieldValue.increment(totalScore)
         };
 
-        // توزيع الألقاب
-        if (index === 0) updates.lionCount = firebase.firestore.FieldValue.increment(1); // الأسد
-        if (totalPlayers >= 2 && index === totalPlayers - 1) updates.sheepCount = firebase.firestore.FieldValue.increment(1); // الخروف
-        if (totalPlayers >= 3 && index === 1) updates.tigerCount = firebase.firestore.FieldValue.increment(1); // النمر
-        if (totalPlayers >= 4 && index === totalPlayers - 2) updates.goatCount = firebase.firestore.FieldValue.increment(1); // المعزة
+        if (index === 0) updates.lionCount = firebase.firestore.FieldValue.increment(1);
+        if (totalPlayers >= 2 && index === totalPlayers - 1) updates.sheepCount = firebase.firestore.FieldValue.increment(1);
+        if (totalPlayers >= 3 && index === 1) updates.tigerCount = firebase.firestore.FieldValue.increment(1);
+        if (totalPlayers >= 4 && index === totalPlayers - 2) updates.goatCount = firebase.firestore.FieldValue.increment(1);
 
         batch.update(userRef, updates);
     });
 
-    // 3. تصفير الغرفة
     batch.update(db.collection('rooms').doc(GAME_ID), { status: 'lobby', round: 1 });
     state.players.forEach(p => {
         batch.update(db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id), { scores: [], status: 'waiting' });
     });
 
-    try {
-        await batch.commit();
-        toast('🏆 تم تحديث إحصائيات الجميع!');
-    } catch(e) {
-        console.error(e);
-        toast('حدث خطأ في الحفظ', true);
-    }
+    try { await batch.commit(); toast('🏆 تم تحديث إحصائيات الجميع!'); } 
+    catch(e) { console.error(e); toast('حدث خطأ في الحفظ', true); }
 }
 
-// 🔥 عرض لوحة الشرف (Leaderboard) من الحسابات
 async function showHallOfFame() {
     const list = document.getElementById('fameList');
-    list.innerHTML = '<div style="text-align:center">جاري جلب بيانات السيرفر...</div>';
+    list.innerHTML = '<div style="text-align:center">جاري التحميل...</div>';
     document.getElementById('fameModal').style.display = 'flex';
 
     try {
-        // نجيب كل اليوزرز ونرتبهم حسب عدد مرات "الأسد"
         const snapshot = await db.collection('users').orderBy('lionCount', 'desc').limit(20).get();
         list.innerHTML = '';
         
-        if (snapshot.empty) {
-            list.innerHTML = '<div style="text-align:center">لا يوجد بيانات بعد</div>';
-            return;
-        }
+        if (snapshot.empty) { list.innerHTML = '<div style="text-align:center">لا يوجد بيانات</div>'; return; }
 
         let rank = 1;
         snapshot.forEach(doc => {
             const u = doc.data();
-            const lion = u.lionCount || 0;
-            const sheep = u.sheepCount || 0;
-            const tiger = u.tigerCount || 0;
-            const goat = u.goatCount || 0;
+            const lion = u.lionCount || 0; const sheep = u.sheepCount || 0;
+            const tiger = u.tigerCount || 0; const goat = u.goatCount || 0;
             const games = u.gamesPlayed || 0;
             
-            // تحديد اللقب
             let title = "لاعب صاعد";
             if (games > 0) {
                 if (lion > sheep && lion > 2) title = "👑 ملك الغابة";
@@ -371,24 +420,13 @@ async function showHallOfFame() {
                 <div class="fame-info">
                     <div class="fame-name">${u.avatar || '👤'} ${u.name}</div>
                     <div class="fame-title">${title}</div>
-                    <div class="fame-stats">
-                        <span>🦁 ${lion}</span> | 
-                        <span>🐯 ${tiger}</span> | 
-                        <span>🐐 ${goat}</span> | 
-                        <span>🐑 ${sheep}</span>
-                    </div>
+                    <div class="fame-stats"><span>🦁 ${lion}</span> | <span>🐯 ${tiger}</span> | <span>🐐 ${goat}</span> | <span>🐑 ${sheep}</span></div>
                 </div>
-                <div style="font-size:10px; opacity:0.7; text-align:left;">
-                    ${games} مباريات
-                </div>
+                <div style="font-size:10px; opacity:0.7; text-align:left;">${games} مباريات</div>
             `;
             list.appendChild(item);
         });
-
-    } catch(e) {
-        console.error(e);
-        list.innerHTML = '<div style="text-align:center; color:red">حدث خطأ في التحميل</div>';
-    }
+    } catch(e) { list.innerHTML = 'خطأ في التحميل'; }
 }
 
 async function resetGame() { if(!confirm('تصفير؟'))return; const b=db.batch(); b.update(db.collection('rooms').doc(GAME_ID),{round:1,status:'lobby'}); state.players.forEach(p=>b.update(db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id),{scores:[],status:'waiting'})); await b.commit(); }
