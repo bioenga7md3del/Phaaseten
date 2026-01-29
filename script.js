@@ -1,5 +1,5 @@
 /* =========================================
-   1. إعدادات Firebase
+   1. تهيئة Firebase والإعدادات
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -11,11 +11,18 @@ const firebaseConfig = {
 };
 
 try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
-const db = firebase.firestore();
-const auth = firebase.auth();
 
-// منع مشاكل الكاش والتهنيج
-try { db.settings({ merge: true, cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED }); } catch (err) {}
+const db = firebase.firestore();
+
+// 🔥🔥🔥 الحل السحري لمشكلة 400 Bad Request / Network Error 🔥🔥🔥
+// السطر ده بيجبر الفيربيز يستخدم اتصال HTTP العادي المضمون بدلاً من WebSockets اللي بيقطع
+db.settings({ 
+    experimentalForceLongPolling: true, 
+    merge: true,
+    cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED 
+});
+
+const auth = firebase.auth();
 
 /* =========================================
    2. الثوابت والمتغيرات
@@ -80,7 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
     safeClick('resetGameBtn', resetGame);
     safeClick('factoryResetBtn', adminFactoryReset);
     safeClick('syncPlayersBtn', syncPlayers); // زر استدعاء الكل
-    safeClick('showFameBtn', showHallOfFame);
+    
+    // أزرار اللوحة
+    // لاحظ: openFameModalForce مربوطة في الـ HTML مباشرةً كمان للأمان
+    safeClick('showFameBtn', openFameModalForce);
     
     safeClick('leaveGameBtn', () => switchScreen('lobby'));
     
@@ -145,14 +155,13 @@ async function loadUserProfile(uid) {
 
 async function logoutUser() { 
     if(state.me) try{
-        // مجرد خروج من الانتظار (اختياري)
         // await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).delete();
     }catch(e){} 
     await auth.signOut(); switchScreen('login'); 
 }
 
 /* =========================================
-   5. اللوبي والاتصال (تم الإصلاح هنا)
+   5. اللوبي والاتصال
    ========================================= */
 async function enterGlobalLobby() {
     const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
@@ -169,7 +178,7 @@ async function enterGlobalLobby() {
 function subscribe() {
     if(unsubGame) unsubGame(); if(unsubPlayers) unsubPlayers();
     
-    // مراقب حالة الغرفة (للتنقل)
+    // مراقب حالة الغرفة
     unsubGame = db.collection('rooms').doc(GAME_ID).onSnapshot(doc => {
         if(!doc.exists) return; const d = doc.data();
         state.isAdmin = (d.admin === state.me);
@@ -184,20 +193,18 @@ function subscribe() {
             if (!state.isAdmin && mePlayer && mePlayer.status === 'active') { 
                 switchScreen('game');
             } 
-            // لو أدمن، ابقى في مكانك (الأزرار هتتغير)
         } else { 
             switchScreen('lobby'); 
             document.getElementById('waitingText').textContent = "في انتظار بدء المباراة..."; 
         }
     });
 
-    // مراقب اللاعبين (تم إصلاح مشكلة الاختفاء)
+    // مراقب اللاعبين
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
         state.players = []; 
         snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
         
-        // 🔥 التعديل: التحديث الإجباري دائماً 🔥
-        // بنرسم اللوبي والجيم في الخلفية حتى لو مش ظاهرين
+        // رسم البيانات دائماً (حتى لو في الخلفية) لتجنب التأخير
         renderLobby();
         renderGameUI();
         
@@ -215,7 +222,6 @@ function renderLobby() {
     const adminPanel = document.getElementById('adminLobbyControls');
     const waitMsg = document.getElementById('playerWaitingMsg');
     
-    // التحكم في الظهور
     if(adminPanel) adminPanel.style.display = state.isAdmin ? 'flex' : 'none';
     if(waitMsg) waitMsg.style.display = state.isAdmin ? 'none' : 'block';
     
@@ -242,7 +248,6 @@ function renderLobby() {
         }
     }
 
-    // رسم القائمة
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
     sorted.forEach(p => {
         const item = document.createElement('div');
@@ -255,7 +260,6 @@ function renderLobby() {
     });
 }
 
-// دالة البدء أو العودة
 function handleStartOrResumeGame() {
     if (state.status === 'playing') {
         switchScreen('game');
@@ -266,11 +270,9 @@ function handleStartOrResumeGame() {
 
 async function togglePlayerStatus(p) {
     if (state.status !== 'playing') {
-        // لو في اللوبي عادي
         const newS = p.status === 'active' ? 'waiting' : 'active';
         await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: newS });
     } else {
-        // لو اللعبة شغالة (دخول متأخر)
         if (p.status === 'active') {
             if(!confirm('إخراج اللاعب (دكة)؟')) return;
             await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'waiting' });
@@ -451,51 +453,97 @@ async function finishGameAndSave() {
     catch(e) { console.error(e); toast('حدث خطأ في الحفظ', true); }
 }
 
-// عرض لوحة الشرف
-async function showHallOfFame() {
+// 🔥 دالة الفتح الإجباري (Force Open) 🔥
+function openFameModalForce() {
+    const modal = document.getElementById('fameModal');
     const list = document.getElementById('fameList');
-    document.getElementById('fameModal').style.display = 'flex';
-    list.innerHTML = '<div style="text-align:center">جاري التحميل...</div>';
-    try {
-        const snapshot = await db.collection('users').get();
-        if (snapshot.empty) { list.innerHTML = '<div style="text-align:center">لا يوجد بيانات</div>'; return; }
+    
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.zIndex = "99999"; // عشان يظهر غصب عن أي حاجة
+    } else {
+        alert("يا هندسة كود المودال مش موجود!");
+        return;
+    }
+
+    list.innerHTML = '<div style="text-align:center; padding:20px; color:#fbbf24;">جاري جلب الأبطال... 🦁</div>';
+
+    db.collection('users').get().then(snap => {
+        if (snap.empty) {
+            list.innerHTML = '<div style="text-align:center">لا يوجد بيانات</div>';
+            return;
+        }
         
         let users = [];
-        snapshot.forEach(doc => {
+        snap.forEach(doc => {
             const d = doc.data();
-            users.push({ ...d, lionCount: d.lionCount||0 });
+            users.push({ 
+                name: d.name || 'مجهول', 
+                avatar: d.avatar || '👤',
+                lion: d.lionCount || 0,
+                sheep: d.sheepCount || 0,
+                tiger: d.tigerCount || 0,
+                games: d.gamesPlayed || 0
+            });
         });
-        
-        // الترتيب في الكود بدلاً من الداتا بيز (أضمن)
-        users.sort((a, b) => b.lionCount - a.lionCount);
 
-        list.innerHTML = '';
+        // رتبهم: الأسد أولاً
+        users.sort((a, b) => b.lion - a.lion);
+
+        let html = '';
         let rank = 1;
         users.forEach(u => {
-            const lion = u.lionCount || 0; const sheep = u.sheepCount || 0;
-            const tiger = u.tigerCount || 0; const goat = u.goatCount || 0;
-            const games = u.gamesPlayed || 0;
-            
-            let title = "لاعب صاعد";
-            if (games > 0) {
-                if (lion > sheep && lion > 2) title = "👑 ملك الغابة";
-                else if (sheep > lion && sheep > 2) title = "🌱 صديق البيئة";
-                else if (tiger > 2) title = "🐯 الوصيف الشرس";
+            let title = "";
+            if (u.games > 0) {
+                if (u.lion > u.sheep && u.lion >= 2) title = "👑 ملك";
+                else if (u.sheep > u.lion && u.sheep >= 2) title = "🌱 صديق البيئة";
             }
-            const item = document.createElement('div');
-            item.className = 'fame-item';
-            item.innerHTML = `
-                <div class="fame-rank">#${rank++}</div>
-                <div class="fame-info">
-                    <div class="fame-name">${u.avatar||'👤'} ${u.name}</div>
-                    <div class="fame-title">${title}</div>
-                    <div class="fame-stats"><span>🦁 ${lion}</span> | <span>🐯 ${tiger}</span> | <span>🐐 ${goat}</span> | <span>🐑 ${sheep}</span></div>
+
+            html += `
+            <div class="fame-item" style="background:rgba(255,255,255,0.05); padding:10px; margin-bottom:8px; border-radius:10px; display:flex; align-items:center;">
+                <div style="font-weight:900; width:30px; color:#94a3b8;">#${rank++}</div>
+                <div style="flex:1;">
+                    <div style="font-weight:bold;">${u.avatar} ${u.name} <span style="font-size:10px; color:#fbbf24;">${title}</span></div>
+                    <div style="font-size:11px; color:#aaa; margin-top:2px;">
+                        🦁 ${u.lion} | 🐯 ${u.tiger} | 🐑 ${u.sheep}
+                    </div>
                 </div>
-                <div style="font-size:10px; opacity:0.7; text-align:left;">${games} مباريات</div>
-            `;
-            list.appendChild(item);
+                <div style="font-size:10px; opacity:0.6;">${u.games} جيم</div>
+            </div>`;
         });
-    } catch(e) { list.innerHTML = 'خطأ في التحميل'; console.error(e); }
+        
+        list.innerHTML = html;
+    }).catch(err => {
+        console.error(err);
+        list.innerHTML = '<div style="color:red; text-align:center">فشل الاتصال بالسيرفر</div>';
+    });
+}
+
+// 🔥 تصفير الدوري (Reset Career) 🔥
+async function resetCareerStats() {
+    if(!confirm('⚠️ تحذير: هل أنت متأكد من تصفير الدوري؟\nسيتم حذف جميع الكؤوس والألقاب لجميع اللاعبين!')) return;
+    
+    const batch = db.batch();
+    const snap = await db.collection('users').get();
+    
+    snap.forEach(doc => {
+        batch.update(db.collection('users').doc(doc.id), {
+            lionCount: 0,
+            sheepCount: 0,
+            tigerCount: 0,
+            goatCount: 0,
+            gamesPlayed: 0,
+            accumulatedScore: 0
+        });
+    });
+
+    await batch.commit();
+    toast('تم تصفير الدوري بنجاح 🗑️');
+    
+    // لو اللوحة مفتوحة حدثها
+    if(document.getElementById('fameModal').style.display === 'flex') {
+        openFameModalForce();
+    }
 }
 
 async function resetGame() { if(!confirm('تصفير؟'))return; const b=db.batch(); b.update(db.collection('rooms').doc(GAME_ID),{round:1,status:'lobby'}); state.players.forEach(p=>b.update(db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id),{scores:[],status:'waiting'})); await b.commit(); }
@@ -526,48 +574,3 @@ function showModal(n,t) { document.getElementById('skipType').textContent=t; doc
 function toast(m, e=false) { const t=document.getElementById('toast'); t.innerHTML=m; t.className=e?'toast show error':'toast show'; setTimeout(()=>t.classList.remove('show'),3000); }
 function shareWa() { window.open(`https://wa.me/?text=${encodeURIComponent(`يلا Phase 10 🔥\n${window.location.href}`)}`); }
 function switchScreen(s) { ['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; }); if(s==='login') document.getElementById('loginScreen').style.display='block'; if(s==='register') document.getElementById('registerScreen').style.display='block'; if(s==='lobby') document.getElementById('lobbyScreen').style.display='block'; if(s==='game') document.getElementById('gameRoom').style.display='block'; }
-
-
-
-// 🔥 دالة القوة الجبرية لفتح اللوحة 🔥
-function openFameModalForce() {
-    // 1. إجبار المودال على الظهور فوراً
-    const modal = document.getElementById('fameModal');
-    const list = document.getElementById('fameList');
-    
-    if (modal) {
-        modal.style.display = 'flex'; // أظهر الشباك
-        modal.style.zIndex = "9999";  // تأكد إنه فوق كل حاجة
-    } else {
-        alert("يا هندسة كود المودال مش موجود في الـ HTML!");
-        return;
-    }
-
-    // 2. محاولة جلب البيانات
-    list.innerHTML = '<h4 style="text-align:center; color:white;">جاري التحميل...</h4>';
-
-    db.collection('users').orderBy('lionCount', 'desc').get()
-    .then(snap => {
-        if (snap.empty) {
-            list.innerHTML = '<h4 style="text-align:center">مفيش داتا لسه</h4>';
-            return;
-        }
-        
-        let html = '';
-        let rank = 1;
-        snap.forEach(doc => {
-            const u = doc.data();
-            html += `
-            <div style="background:rgba(255,255,255,0.1); padding:10px; margin-bottom:5px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:bold; color:#fbbf24; width:30px;">#${rank++}</span>
-                <span style="text-align:right; flex:1; color:white;">${u.name}</span>
-                <span style="font-size:12px; color:#ccc;">🦁 ${u.lionCount || 0} | 🐑 ${u.sheepCount || 0}</span>
-            </div>`;
-        });
-        list.innerHTML = html;
-    })
-    .catch(err => {
-        console.error(err);
-        list.innerHTML = '<h4 style="color:red; text-align:center">خطأ في النت</h4>';
-    });
-}
