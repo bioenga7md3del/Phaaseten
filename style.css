@@ -48,6 +48,10 @@ body { font-family: 'Cairo', sans-serif; background: var(--bg-dark); color: var(
 .admin-round-nav { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
 .nav-arrow { background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 5px 15px; border-radius: 8px; cursor: pointer; }
 
+/* Notifications */
+.notification-dot { position: absolute; top: -5px; right: -5px; width: 12px; height: 12px; background: #ef4444; border-radius: 50%; border: 2px solid #1e293b; box-shadow: 0 0 10px #ef4444; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
 /* Cards */
 .cards-list { display: flex; flex-direction: column; gap: 12px; }
 .player-card { background: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); transition: all 0.3s; position: relative; }
@@ -113,13 +117,14 @@ th, td { padding: 10px; text-align: center; border-bottom: 1px solid var(--borde
 th { background: #0f172a; position: sticky; top: 0; color: var(--text-muted); font-size: 12px; }
 .active-col { background: rgba(99, 102, 241, 0.1); border-left: 1px solid var(--primary); border-right: 1px solid var(--primary); }
 
-.fame-list { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; text-align: right; }
-.fame-item { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 15px; position: relative; }
-.fame-date { font-size: 11px; color: var(--text-muted); position: absolute; top: 10px; left: 10px; }
-.fame-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-weight: 700; font-size: 14px; }
-.lion-badge { color: var(--gold); } .sheep-badge { color: var(--sheep); } .tiger-badge {color: var(--tiger);} .goat-badge {color: var(--goat);}
-.score-badge { background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; }
-.fame-comment { font-size: 11px; color: var(--text-muted); font-weight: normal; margin-right: 5px; }
+/* Stats List */
+.fame-list { display: grid; gap: 10px; margin-top: 15px; }
+.fame-item { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
+.fame-rank { font-weight: 900; font-size: 18px; color: var(--text-muted); width: 30px; }
+.fame-info { flex: 1; display: flex; flex-direction: column; }
+.fame-name { font-weight: 700; font-size: 15px; }
+.fame-title { font-size: 11px; color: var(--gold); }
+.fame-stats { display: flex; gap: 8px; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #334155; padding: 12px 24px; border-radius: 50px; z-index: 3000; transition: 0.3s; opacity: 0; border: 1px solid var(--border); font-weight: bold; display: flex; align-items: center; gap: 10px; }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
