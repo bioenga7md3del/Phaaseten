@@ -69,7 +69,7 @@
 
         <div class="lobby-header">
             <h2 id="lobbyTitle">غرفة الانتظار 🛋️</h2>
-            <p id="lobbySubtitle">في انتظار الأدمن...</p>
+            <p id="lobbySubtitle">جاري التحميل...</p>
         </div>
 
         <div class="lobby-list-container">
@@ -82,7 +82,7 @@
                 <button id="startGameBtn" class="btn-main flex-grow">⚽ ابدأ المباراة</button>
             </div>
             <div class="admin-actions-row" style="margin-top:5px;">
-                <button id="lobbyChangeAdminBtn" class="btn-glass flex-grow" style="border-color:var(--gold); color:var(--gold);">🔑 نقل الأدمن</button>
+                <button id="lobbyChangeAdminBtn" class="btn-glass flex-grow" style="color:var(--gold); border-color:var(--gold);">🔑 نقل الأدمن</button>
                 <button id="factoryResetBtn" class="btn-danger-text flex-grow">☢️ مسح شامل</button>
             </div>
         </div>
@@ -93,7 +93,7 @@
         
         <div id="playerWaitingMsg" style="text-align:center; margin-top:20px; display:none;">
             <div class="loader-spinner">⏳</div>
-            <p>في انتظار بدء المباراة...</p>
+            <p id="waitingText">في انتظار بدء المباراة...</p>
         </div>
     </div>
 
@@ -111,16 +111,22 @@
                   <button id="leaveGameBtn" class="btn-icon-glass danger-color">✕</button>
               </div>
           </div>
-          
           <div class="round-description">
               <span id="roundDesc">-- مطلوب --</span>
           </div>
-
           <div id="adminGameControls" class="admin-round-nav" style="display:none;">
               <button id="prevRoundBtn" class="nav-arrow">❮</button>
               <span style="font-size:12px; opacity:0.7">تغيير الجولة</span>
               <button id="nextRoundBtn" class="nav-arrow">❯</button>
           </div>
+      </div>
+
+      <div class="glass-panel" style="padding: 10px; margin-bottom: 15px;">
+        <div class="row-btns">
+          <button id="leaderBtn" class="btn-glass flex-grow">👑 الترتيب</button>
+          <button id="randomSkipBtn" class="btn-glass flex-grow">🎲 عشوائي</button>
+          <button id="smartSkipBtn" class="btn-purple flex-grow">🧠 ذكي</button>
+        </div>
       </div>
 
       <div id="myStatusCard" class="status-banner" style="display:none">
@@ -135,7 +141,7 @@
       
       <div id="adminFinishControls" class="floating-bottom-actions" style="display:none;">
           <div class="row-btns">
-            <button id="gameChangeAdminBtn" class="btn-glass" style="border-color:var(--gold); color:var(--gold);">🔑 الأدمن</button>
+            <button id="gameChangeAdminBtn" class="btn-glass" style="color:var(--gold); border-color:var(--gold);">🔑 الأدمن</button>
             <button id="finishGameBtn" class="btn-danger flex-grow">إنهاء وحفظ 💾</button>
           </div>
       </div>
@@ -149,9 +155,7 @@
               <h3>📊 الجدول الكامل</h3>
               <button id="closeFullTableBtn" class="close-icon">✕</button>
           </div>
-          <div class="table-scroll">
-            <table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table>
-          </div>
+          <div class="table-scroll"><table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table></div>
       </div>
   </div>
 
