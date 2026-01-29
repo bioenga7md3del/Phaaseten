@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     safeClick('resetGameBtn', resetGame);
     safeClick('factoryResetBtn', adminFactoryReset);
+    safeClick('syncPlayersBtn', syncPlayers); // زر الاستدعاء
     safeClick('showFameBtn', showHallOfFame);
     
     // زر الخروج العادي (للاعبين)
@@ -264,7 +265,6 @@ async function startGame() {
    6. اللعبة والإحصائيات
    ========================================= */
 function renderGameUI() {
-    // إظهار زر الخروج للوبي للأدمن فقط
     const adminBackBtn = document.getElementById('adminBackToLobbyBtn');
     const normalLeaveBtn = document.getElementById('leaveGameBtn');
     const adminFinish = document.getElementById('adminFinishControls');
@@ -272,7 +272,7 @@ function renderGameUI() {
 
     if (state.isAdmin) {
         adminBackBtn.style.display = 'flex';
-        normalLeaveBtn.style.display = 'none'; // نخفي خروج اللاعبين
+        normalLeaveBtn.style.display = 'none';
         adminFinish.style.display = 'flex';
         adminControls.style.display = 'flex';
     } else {
@@ -353,43 +353,62 @@ function getAnimalRank(i, t) { if(i===0) return {icon:'🦁', class:'rank-lion'}
 function updateMyStatusCard(idx, total) { const c=document.getElementById('myStatusCard'); const m=document.getElementById('statusMsg'); const e=document.getElementById('statusEmoji'); const t=document.getElementById('statusTitle'); let type='normal', icon='😐', lbl='عادي'; if(total>0 && idx===0) { type='lion'; icon='🦁'; lbl='الأسد'; } else if(total>=2 && idx===total-1) { type='sheep'; icon='🐑'; lbl='الخروف'; } const txts = STATUS_MSGS[type] || STATUS_MSGS['normal']; m.textContent = txts[Math.floor(Math.random()*txts.length)]; e.textContent=icon; t.textContent=lbl; c.style.display='flex'; }
 function openFullTable() { const active = state.players.filter(p => p.status === 'active').sort((a,b)=>((a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0)-(b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0))); const thead = document.getElementById('tHead'); thead.innerHTML = ''; ['اللاعب','مجموع'].forEach(t=>{const th=document.createElement('th'); th.textContent=t; thead.appendChild(th)}); for(let i=1; i<=ROUNDS; i++) { const th=document.createElement('th'); th.textContent=i; if(i===state.round) th.className='active-col'; thead.appendChild(th); } const tbody = document.getElementById('tBody'); tbody.innerHTML = ''; active.forEach((p, idx) => { const tr = document.createElement('tr'); const tdName = document.createElement('td'); tdName.textContent = p.name; tr.appendChild(tdName); const tdTotal = document.createElement('td'); tdTotal.textContent = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0); tr.appendChild(tdTotal); for(let r=0; r<ROUNDS; r++) { const td = document.createElement('td'); td.textContent = (p.scores[r]!==null && p.scores[r]!==undefined) ? p.scores[r] : ''; tr.appendChild(td); } tbody.appendChild(tr); }); document.getElementById('fullTableModal').style.display = 'flex'; }
 
-// حفظ الإحصائيات (Career Stats)
+// 🔥 وظيفة استدعاء الكل (Sync Players)
+async function syncPlayers() {
+    if(!confirm('هل تريد استدعاء جميع المسجلين للوبي؟')) return;
+    try {
+        const usersSnap = await db.collection('users').get();
+        const batch = db.batch();
+        let count = 0;
+        usersSnap.forEach(doc => {
+            const u = doc.data();
+            const ref = db.collection('rooms').doc(GAME_ID).collection('players').doc(doc.id);
+            // نضيفه فقط لو مش موجود، أو نحدث بياناته الأساسية ونضمن إنه waiting
+            batch.set(ref, {
+                name: u.name,
+                avatar: u.avatar,
+                uid: doc.id,
+                scores: [], // تصفير السكور للأمان
+                status: 'waiting',
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            count++;
+        });
+        await batch.commit();
+        toast(`تم استدعاء ${count} لاعب بنجاح 📥`);
+    } catch(e) {
+        console.error(e);
+        toast('حدث خطأ في الاستدعاء', true);
+    }
+}
+
 async function finishGameAndSave() {
     if(!confirm('إنهاء المباراة وحفظ الإحصائيات؟')) return;
-    
     const active = state.players.filter(p => p.status === 'active').sort((a,b) => {
         const sa = (a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
         const sb = (b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0);
         return sa - sb;
     });
-
     const totalPlayers = active.length;
     if (totalPlayers < 2) return toast('عدد اللاعبين قليل!', true);
-
     const batch = db.batch();
-
     active.forEach((p, index) => {
         const userRef = db.collection('users').doc(p.uid);
         const totalScore = (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0);
-        
         let updates = {
             gamesPlayed: firebase.firestore.FieldValue.increment(1),
             accumulatedScore: firebase.firestore.FieldValue.increment(totalScore)
         };
-
         if (index === 0) updates.lionCount = firebase.firestore.FieldValue.increment(1);
         if (totalPlayers >= 2 && index === totalPlayers - 1) updates.sheepCount = firebase.firestore.FieldValue.increment(1);
         if (totalPlayers >= 3 && index === 1) updates.tigerCount = firebase.firestore.FieldValue.increment(1);
         if (totalPlayers >= 4 && index === totalPlayers - 2) updates.goatCount = firebase.firestore.FieldValue.increment(1);
-
         batch.update(userRef, updates);
     });
-
     batch.update(db.collection('rooms').doc(GAME_ID), { status: 'lobby', round: 1 });
     state.players.forEach(p => {
         batch.update(db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id), { scores: [], status: 'waiting' });
     });
-
     try { await batch.commit(); toast('🏆 تم تحديث إحصائيات الجميع!'); } 
     catch(e) { console.error(e); toast('حدث خطأ في الحفظ', true); }
 }
@@ -398,27 +417,22 @@ async function showHallOfFame() {
     const list = document.getElementById('fameList');
     list.innerHTML = '<div style="text-align:center">جاري التحميل...</div>';
     document.getElementById('fameModal').style.display = 'flex';
-
     try {
         const snapshot = await db.collection('users').orderBy('lionCount', 'desc').limit(20).get();
         list.innerHTML = '';
-        
         if (snapshot.empty) { list.innerHTML = '<div style="text-align:center">لا يوجد بيانات</div>'; return; }
-
         let rank = 1;
         snapshot.forEach(doc => {
             const u = doc.data();
             const lion = u.lionCount || 0; const sheep = u.sheepCount || 0;
             const tiger = u.tigerCount || 0; const goat = u.goatCount || 0;
             const games = u.gamesPlayed || 0;
-            
             let title = "لاعب صاعد";
             if (games > 0) {
                 if (lion > sheep && lion > 2) title = "👑 ملك الغابة";
                 else if (sheep > lion && sheep > 2) title = "🌱 صديق البيئة";
                 else if (tiger > 2) title = "🐯 الوصيف الشرس";
             }
-
             const item = document.createElement('div');
             item.className = 'fame-item';
             item.innerHTML = `
@@ -436,14 +450,10 @@ async function showHallOfFame() {
 }
 
 async function resetGame() { if(!confirm('تصفير؟'))return; const b=db.batch(); b.update(db.collection('rooms').doc(GAME_ID),{round:1,status:'lobby'}); state.players.forEach(p=>b.update(db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id),{scores:[],status:'waiting'})); await b.commit(); }
-
-// إصلاح المسح الشامل (Reset Only)
 async function adminFactoryReset() { 
     if(!confirm('هل أنت متأكد من تصفير اللعبة؟ (لن يتم حذف اللاعبين)')) return; 
     const b=db.batch(); 
-    // 1. تصفير حالة الغرفة
     b.update(db.collection('rooms').doc(GAME_ID),{round:1,status:'lobby'}); 
-    // 2. تصفير كل اللاعبين (بدون حذف)
     state.players.forEach(p => {
         b.update(db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id), {
             scores: [], 
@@ -453,7 +463,6 @@ async function adminFactoryReset() {
     await b.commit(); 
     toast('تم تصفير البيانات بنجاح 🔄'); 
 }
-
 function openProfileModal() { document.getElementById('editName').value=state.userData.name; document.getElementById('editSelectedAvatar').value=state.userData.avatar; document.getElementById('profileModal').style.display='flex'; }
 async function saveProfileChanges() { const n=document.getElementById('editName').value.trim(); const a=document.getElementById('editSelectedAvatar').value; const p=document.getElementById('editPass').value; try{await db.collection('users').doc(state.me).update({name:n,avatar:a}); await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).update({name:n,avatar:a}); if(p)await auth.currentUser.updatePassword(p); state.userData.name=n; state.userData.avatar=a; document.getElementById('userNameDisplay').textContent=n; document.getElementById('userAvatarDisplay').textContent=a; document.getElementById('profileModal').style.display='none'; toast('تم الحفظ');}catch(e){toast('خطأ',true);} }
 function openAdminSelect() { const l=document.getElementById('adminCandidatesList'); l.innerHTML=''; state.players.forEach(p=>{if(p.uid===state.me)return; const d=document.createElement('div'); d.className='lobby-item'; d.textContent=p.name; d.onclick=()=>transferAdmin(p); l.appendChild(d);}); document.getElementById('adminSelectModal').style.display='flex'; }
