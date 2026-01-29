@@ -1,5 +1,5 @@
 /* =========================================
-   1. إعدادات Firebase (نسخة الإصلاح)
+   1. إعدادات Firebase
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -11,35 +11,22 @@ const firebaseConfig = {
 };
 
 try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
-
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// 🔥 هام جداً: إعدادات لمنع أخطاء الكاش (BloomFilter Error Fix)
-try {
-    db.settings({
-        merge: true,
-        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-    });
-    // لا نستخدم enablePersistence هنا لتجنب المشاكل
-} catch (err) {
-    console.log("Firestore settings warning:", err);
-}
+// منع مشاكل الكاش
+try { db.settings({ merge: true, cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED }); } catch (err) {}
 
 /* =========================================
    2. الثوابت
    ========================================= */
 const GAME_ID = "main_game_room";
 const ROUNDS = 10;
-const PHASE_RULES = [
-    "2 مجموعات (3)", "مجموعة (3) + تسلسل (4)", "مجموعة (4) + تسلسل (4)", "تسلسل (7)",
-    "تسلسل (8)", "تسلسل (9)", "2 مجموعات (4)", "7 كروت لون واحد",
-    "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
-];
+const PHASE_RULES = ["2 مجموعات (3)", "م (3) + ت (4)", "م (4) + ت (4)", "تسلسل (7)", "تسلسل (8)", "تسلسل (9)", "2 مجموعات (4)", "7 كروت لون واحد", "م (5) + م (2)", "م (5) + م (3)"];
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🔥"];
 const STATUS_MSGS = {
-    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥", "ملك الغابة وصل 🦁"],
-    sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏", "مكانك محجوز في القاع 📉"],
+    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥"],
+    sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏"],
     normal: ["شد حيلك لسه بدري 💪", "ركز في ورقك 🃏", "العب بذكاء 🧠"]
 };
 
@@ -51,58 +38,42 @@ const timers = new Map();
 let playerToSubId = null;
 
 /* =========================================
-   3. البداية والتحقق
+   3. البداية
    ========================================= */
 document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged(async user => {
-        if(user) {
-            state.me = user.uid;
-            console.log("User logged in:", user.uid); // Debug
-            await loadUserProfile(user.uid); 
-        } else {
-            state.me = null; state.userData = null; switchScreen('login');
-        }
+        if(user) { state.me = user.uid; await loadUserProfile(user.uid); } 
+        else { state.me = null; state.userData = null; switchScreen('login'); }
     });
 
     document.addEventListener('click', async () => { try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){} }, { once: true });
 
-    // دالة آمنة لإضافة الأحداث (تمنع توقف الكود لو الزرار مش موجود)
-    const safeClick = (id, func) => {
-        const el = document.getElementById(id);
-        if(el) el.addEventListener('click', func);
-    };
+    const safeClick = (id, func) => { const el = document.getElementById(id); if(el) el.addEventListener('click', func); };
 
     safeClick('doLoginBtn', loginUser);
     safeClick('doRegisterBtn', registerUser);
     safeClick('goToRegister', () => switchScreen('register'));
     safeClick('goToLogin', () => switchScreen('login'));
     safeClick('logoutBtn', logoutUser);
-    
     safeClick('openProfileBtn', openProfileModal);
     safeClick('saveProfileChangesBtn', saveProfileChanges);
     safeClick('closeProfileModalBtn', () => document.getElementById('profileModal').style.display='none');
-
     safeClick('startGameBtn', startGame);
     safeClick('resetGameBtn', resetGame);
     safeClick('factoryResetBtn', adminFactoryReset);
     safeClick('showFameBtn', showHallOfFame);
-
     safeClick('leaveGameBtn', () => switchScreen('lobby'));
     safeClick('finishGameBtn', finishGameAndSave);
     safeClick('viewFullTableBtn', openFullTable);
-    
     safeClick('prevRoundBtn', () => changeRound(-1));
     safeClick('nextRoundBtn', () => changeRound(1));
-    
     safeClick('lobbyChangeAdminBtn', openAdminSelect);
     safeClick('gameChangeAdminBtn', openAdminSelect);
-
     safeClick('closeFullTableBtn', () => document.getElementById('fullTableModal').style.display='none');
     safeClick('closeModalBtn', () => document.getElementById('skipModal').style.display='none');
     safeClick('closeSubModalBtn', () => document.getElementById('subModal').style.display='none');
     safeClick('closeFameBtn', () => document.getElementById('fameModal').style.display='none');
     safeClick('closeAdminModalBtn', () => document.getElementById('adminSelectModal').style.display='none');
-    
     safeClick('waBtn', shareWa);
 
     if(document.getElementById('avatarGrid')) initAvatarGrid();
@@ -110,11 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* =========================================
-   4. دوال مساعدة
+   4. المساعدات
    ========================================= */
 function initAvatarGrid() {
-    const grid = document.getElementById('avatarGrid');
-    if(!grid) return;
+    const grid = document.getElementById('avatarGrid'); if(!grid) return;
     AVATARS.forEach((av, idx) => {
         const div = document.createElement('div'); div.className = `avatar-option ${idx === 0 ? 'selected' : ''}`; div.textContent = av;
         div.onclick = () => { document.querySelectorAll('#avatarGrid .avatar-option').forEach(el => el.classList.remove('selected')); div.classList.add('selected'); document.getElementById('selectedAvatar').value = av; };
@@ -122,178 +92,72 @@ function initAvatarGrid() {
     });
 }
 function initEditAvatarGrid() {
-    const grid = document.getElementById('editAvatarGrid');
-    if(!grid) return;
+    const grid = document.getElementById('editAvatarGrid'); if(!grid) return;
     AVATARS.forEach((av) => {
         const div = document.createElement('div'); div.className = 'avatar-option'; div.textContent = av;
         div.onclick = () => { document.querySelectorAll('#editAvatarGrid .avatar-option').forEach(el => el.classList.remove('selected')); div.classList.add('selected'); document.getElementById('editSelectedAvatar').value = av; };
         grid.appendChild(div);
     });
 }
-
-async function loginUser() {
-    const email = document.getElementById('loginEmail').value;
-    const pass = document.getElementById('loginPass').value;
-    if(!email || !pass) return toast('ادخل البيانات', true);
-    try { await auth.signInWithEmailAndPassword(email, pass); } 
-    catch(e) { console.error(e); toast('بيانات خطأ', true); }
-}
-
-async function registerUser() {
-    const name = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value;
-    const pass = document.getElementById('regPass').value;
-    const avatar = document.getElementById('selectedAvatar').value;
-    if(!name || !email || !pass) return toast('أكمل البيانات', true);
-    
-    // منع تكرار الاسم
-    const nameCheck = await db.collection('users').where('name', '==', name).get();
-    if(!nameCheck.empty) return toast('الاسم مستخدم بالفعل', true);
-
-    try {
-        const cred = await auth.createUserWithEmailAndPassword(email, pass);
-        await db.collection('users').doc(cred.user.uid).set({ name, avatar, email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        toast(`تم التسجيل! أهلاً ${name} 🎉`);
-    } catch(e) { console.error(e); toast('خطأ في التسجيل', true); }
-}
-
-async function loadUserProfile(uid) {
-    try {
-        const doc = await db.collection('users').doc(uid).get();
-        if(doc.exists) {
-            state.userData = doc.data();
-            const nDisp = document.getElementById('userNameDisplay');
-            const aDisp = document.getElementById('userAvatarDisplay');
-            if(nDisp) nDisp.textContent = state.userData.name;
-            if(aDisp) aDisp.textContent = state.userData.avatar;
-            
-            // ✅ هنا الأهم: محاولة الدخول للوبي بعد تحميل البيانات
-            enterGlobalLobby();
-        } else {
-            console.log("No user profile found!");
-        }
-    } catch(e) { console.error("Profile load error:", e); }
-}
-
-async function logoutUser() {
-    if(state.me) {
-        // نحاول نحذفه من الغرفة
-        try { await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).delete(); } catch(e){}
-    }
-    await auth.signOut(); switchScreen('login');
-}
+async function loginUser() { const email=document.getElementById('loginEmail').value; const pass=document.getElementById('loginPass').value; if(!email||!pass) return toast('بيانات ناقصة',true); try{await auth.signInWithEmailAndPassword(email, pass);}catch(e){toast('بيانات خطأ',true);} }
+async function registerUser() { const name=document.getElementById('regName').value.trim(); const email=document.getElementById('regEmail').value; const pass=document.getElementById('regPass').value; const avatar=document.getElementById('selectedAvatar').value; if(!name||!email||!pass) return toast('بيانات ناقصة',true); const chk=await db.collection('users').where('name','==',name).get(); if(!chk.empty)return toast('الاسم مأخوذ',true); try{const c=await auth.createUserWithEmailAndPassword(email,pass); await db.collection('users').doc(c.user.uid).set({name,avatar,email,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}catch(e){toast('خطأ تسجيل',true);} }
+async function loadUserProfile(uid) { try{const d=await db.collection('users').doc(uid).get(); if(d.exists){state.userData=d.data(); document.getElementById('userNameDisplay').textContent=state.userData.name; document.getElementById('userAvatarDisplay').textContent=state.userData.avatar; enterGlobalLobby();}}catch(e){} }
+async function logoutUser() { if(state.me) try{await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).delete();}catch(e){} await auth.signOut(); switchScreen('login'); }
 
 /* =========================================
-   5. منطق اللوبي (Lobby Logic)
+   5. اللوبي
    ========================================= */
 async function enterGlobalLobby() {
-    console.log("Entering Lobby..."); // Debug
-    
-    // 1. إنشاء/تحديث الغرفة لو مش موجودة
     const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
-    if(!gameDoc.exists) {
-        await db.collection('rooms').doc(GAME_ID).set({ 
-            admin: state.me, round: 1, status: 'lobby', 
-            createdAt: firebase.firestore.FieldValue.serverTimestamp() 
-        });
-    }
-
-    // 2. تسجيل اللاعب في الغرفة
-    const playerRef = db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me);
+    if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     
-    try {
-        await playerRef.set({
-            name: state.userData.name, 
-            avatar: state.userData.avatar, 
-            uid: state.me,
-            scores: [], 
-            status: 'waiting', 
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        console.log("Player added to DB successfully");
-    } catch(e) {
-        console.error("Error adding player:", e);
-        toast("خطأ في الاتصال باللعبة", true);
-    }
-    
+    await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
+        name: state.userData.name, avatar: state.userData.avatar, uid: state.me, scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
     subscribe();
 }
 
 function subscribe() {
     if(unsubGame) unsubGame(); if(unsubPlayers) unsubPlayers();
-
-    // مراقب حالة الغرفة
     unsubGame = db.collection('rooms').doc(GAME_ID).onSnapshot(doc => {
-        if(!doc.exists) return;
-        const d = doc.data();
+        if(!doc.exists) return; const d = doc.data();
         state.isAdmin = (d.admin === state.me);
-        
-        // Fail-safe: لو مفيش أدمن، أنا الأدمن
         if(!d.admin) db.collection('rooms').doc(GAME_ID).update({ admin: state.me });
-        
-        state.round = d.round || 1;
-        state.status = d.status || 'lobby';
-
+        state.round = d.round || 1; state.status = d.status || 'lobby';
         if(state.status === 'playing') {
             const mePlayer = state.players.find(p => p.uid === state.me);
-            if (mePlayer && mePlayer.status === 'active') {
-                switchScreen('game'); renderGameUI();
-            } else {
-                switchScreen('lobby');
-                const sub = document.getElementById('lobbySubtitle');
-                if(sub) sub.textContent = "المباراة جارية... (أنت مشجع)";
-                renderLobby();
-            }
-        } else {
-            switchScreen('lobby'); renderLobby();
-        }
+            if (mePlayer && mePlayer.status === 'active') { switchScreen('game'); renderGameUI(); }
+            else { switchScreen('lobby'); document.getElementById('lobbySubtitle').textContent = "المباراة جارية (أنت مشاهد)"; renderLobby(); }
+        } else { switchScreen('lobby'); renderLobby(); }
     });
-
-    // مراقب اللاعبين
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
-        state.players = [];
-        snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
-        console.log("Players updated:", state.players.length); // Debug
-        
+        state.players = []; snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
         if(state.status === 'playing') renderGameUI(); else renderLobby();
-    }, error => {
-        console.error("Firestore Listen Error:", error);
     });
 }
 
 function renderLobby() {
-    const list = document.getElementById('onlinePlayersList'); 
-    if(!list) return;
-    list.innerHTML = '';
+    const list = document.getElementById('onlinePlayersList'); if(!list) return; list.innerHTML = '';
     
+    // إظهار لوحة التحكم للأدمن
     const adminPanel = document.getElementById('adminLobbyControls');
-    const playerPanel = document.getElementById('playerLobbyControls');
     const waitMsg = document.getElementById('playerWaitingMsg');
-    const subTitle = document.getElementById('lobbySubtitle');
-
+    
     if(adminPanel) adminPanel.style.display = state.isAdmin ? 'flex' : 'none';
-    if(playerPanel) playerPanel.style.display = state.isAdmin ? 'none' : 'flex';
     if(waitMsg) waitMsg.style.display = state.isAdmin ? 'none' : 'block';
     
-    if(subTitle) subTitle.textContent = state.isAdmin ? '👑 اختر التشكيلة الأساسية:' : '📋 قائمة المتواجدين';
+    // زر الشرف ظاهر للجميع الآن (التعديل هنا)
+    
+    document.getElementById('lobbySubtitle').textContent = state.isAdmin ? '👑 اختر التشكيلة الأساسية:' : '📋 قائمة المتواجدين';
 
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
-
     sorted.forEach(p => {
         const item = document.createElement('div');
         const isActive = p.status === 'active';
         item.className = `lobby-item ${isActive ? 'selected' : ''}`;
-        
         const adminIcon = (p.uid === state.me && state.isAdmin) ? '👑' : ''; 
-        
-        item.innerHTML = `
-            <div class="lobby-name"><span>${p.avatar||'👤'}</span> ${p.name} ${adminIcon}</div>
-            <div class="lobby-check">${isActive ? '✔' : ''}</div>
-        `;
-        
-        if(state.isAdmin) {
-            item.onclick = () => togglePlayerStatus(p);
-        }
+        item.innerHTML = `<div class="lobby-name"><span>${p.avatar||'👤'}</span> ${p.name} ${adminIcon}</div><div class="lobby-check">${isActive ? '✔' : ''}</div>`;
+        if(state.isAdmin) item.onclick = () => togglePlayerStatus(p);
         list.appendChild(item);
     });
 }
@@ -306,17 +170,13 @@ async function togglePlayerStatus(p) {
 async function startGame() {
     const activeCount = state.players.filter(p => p.status === 'active').length;
     if(activeCount < 1) return toast('اختر لاعب واحد على الأقل', true);
-    
     const me = state.players.find(p => p.uid === state.me);
-    if(me && me.status !== 'active') {
-        if(!confirm('أنت (الأدمن) لم تختر نفسك! ستكون مشاهداً فقط. موافق؟')) return;
-    }
-
+    if(me && me.status !== 'active') if(!confirm('أنت (الأدمن) لم تختر نفسك! موافق؟')) return;
     await db.collection('rooms').doc(GAME_ID).update({ status: 'playing' });
 }
 
 /* =========================================
-   6. منطق اللعبة (Game UI)
+   6. اللعبة
    ========================================= */
 function renderGameUI() {
     const adminControls = document.getElementById('adminGameControls');
@@ -324,35 +184,26 @@ function renderGameUI() {
     if(adminControls) adminControls.style.display = state.isAdmin ? 'flex' : 'none';
     if(adminFinish) adminFinish.style.display = state.isAdmin ? 'flex' : 'none';
     
-    const rNum = document.getElementById('roundNum');
-    const rDesc = document.getElementById('roundDesc');
-    if(rNum) rNum.textContent = state.round;
-    if(rDesc) rDesc.textContent = PHASE_RULES[state.round - 1] || "";
+    document.getElementById('roundNum').textContent = state.round;
+    document.getElementById('roundDesc').textContent = PHASE_RULES[state.round - 1] || "";
 
     const active = state.players.filter(p => p.status === 'active');
-    const sorted = active.map(p => ({
-        ...p, scores: p.scores || [],
-        total: (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0)
-    })).sort((a,b)=>a.total - b.total);
+    const sorted = active.map(p => ({ ...p, scores: p.scores || [], total: (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0) })).sort((a,b)=>a.total - b.total);
 
     const myIdx = sorted.findIndex(p => p.uid === state.me);
     if(myIdx !== -1) updateMyStatusCard(myIdx, sorted.length); 
     else { const c = document.getElementById('myStatusCard'); if(c) c.style.display = 'none'; }
 
-    const container = document.getElementById('cardsContainer');
-    if(!container) return;
-    container.innerHTML = '';
+    const container = document.getElementById('cardsContainer'); if(!container) return; container.innerHTML = '';
 
     sorted.forEach((p, idx) => {
         const animal = getAnimalRank(idx, sorted.length);
         const card = document.createElement('div');
-        
         let rankClass = '';
         if(animal.class === 'rank-lion') rankClass = 'card-lion';
         if(animal.class === 'rank-sheep') rankClass = 'card-sheep';
 
         card.className = `player-card ${rankClass} ${p.uid === state.me ? 'is-me' : ''}`;
-        
         const currentScore = (p.scores[state.round-1] !== null && p.scores[state.round-1] !== undefined) ? p.scores[state.round-1] : '';
 
         card.innerHTML = `
@@ -363,7 +214,6 @@ function renderGameUI() {
                 </div>
                 <div class="p-score-box">${p.total}</div>
             </div>
-            
             <div class="card-body ${p.uid === state.me ? 'open' : ''}">
                 ${ (p.uid === state.me || state.isAdmin) ? `
                 <div class="input-area">
@@ -376,11 +226,7 @@ function renderGameUI() {
                     ${currentScore === '' ? 'جاري اللعب...' : `سكور الجولة: <b>${currentScore}</b>`}
                 </div>
                 ` }
-
-                <div class="history-row">
-                    ${ renderHistoryPills(p.scores) }
-                </div>
-                
+                <div class="history-row">${ renderHistoryPills(p.scores) }</div>
                 ${ state.isAdmin ? `<button onclick="openSubModalById('${p.id}')" class="btn-text" style="font-size:11px">🔄 تبديل اللاعب</button>` : '' }
             </div>
         `;
@@ -398,18 +244,9 @@ function renderHistoryPills(scores) {
     return html;
 }
 
-window.toggleCard = function(header) {
-    const body = header.nextElementSibling;
-    body.classList.toggle('open');
-}
+window.toggleCard = function(header) { header.nextElementSibling.classList.toggle('open'); }
+window.onScoreInput = function(pid, rIdx, val) { const key = `${pid}-${rIdx}`; if(timers.has(key)) clearTimeout(timers.get(key)); timers.set(key, setTimeout(() => saveScore(pid, rIdx, val), 600)); }
 
-window.onScoreInput = function(pid, rIdx, val) {
-    const key = `${pid}-${rIdx}`;
-    if(timers.has(key)) clearTimeout(timers.get(key));
-    timers.set(key, setTimeout(() => saveScore(pid, rIdx, val), 600));
-}
-
-// ... (Functions same as before, condensed for brevity)
 async function saveScore(pid, rIdx, val) { const num = (val===''||val==='-') ? null : Number(val); const p = state.players.find(x => x.id === pid); let s = p.scores ? [...p.scores] : []; while(s.length < ROUNDS) s.push(null); s[rIdx] = num; await db.collection('rooms').doc(GAME_ID).collection('players').doc(pid).update({ scores: s }); }
 async function changeRound(d) { const newR = Math.min(ROUNDS, Math.max(1, state.round + d)); if(newR !== state.round) await db.collection('rooms').doc(GAME_ID).update({ round: newR }); }
 function getAnimalRank(i, t) { if(i===0) return {icon:'🦁', class:'rank-lion'}; if(t>=2 && i===t-1) return {icon:'🐑', class:'rank-sheep'}; return {icon:'', class:''}; }
