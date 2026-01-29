@@ -117,7 +117,6 @@ th, td { padding: 10px; text-align: center; border-bottom: 1px solid var(--borde
 th { background: #0f172a; position: sticky; top: 0; color: var(--text-muted); font-size: 12px; }
 .active-col { background: rgba(99, 102, 241, 0.1); border-left: 1px solid var(--primary); border-right: 1px solid var(--primary); }
 
-/* Stats List */
 .fame-list { display: grid; gap: 10px; margin-top: 15px; }
 .fame-item { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
 .fame-rank { font-weight: 900; font-size: 18px; color: var(--text-muted); width: 30px; }
