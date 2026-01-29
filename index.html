@@ -111,16 +111,20 @@
               <div class="header-actions">
                   <button id="viewFullTableBtn" class="btn-icon-glass">📊</button>
                   
-                  <button id="adminBackToLobbyBtn" class="btn-icon-glass" style="display:none; background:rgba(251, 191, 36, 0.2); color:var(--gold);">🏠</button>
-                  <div id="adminNotificationDot" class="notification-dot" style="display:none;"></div>
+                  <div style="position:relative;">
+                      <button id="adminBackToLobbyBtn" class="btn-icon-glass" style="display:none; background:rgba(251, 191, 36, 0.2); color:var(--gold);">🏠</button>
+                      <div id="adminNotificationDot" class="notification-dot" style="display:none;"></div>
+                  </div>
 
                   <button id="waBtn" class="btn-icon-glass success-color">💬</button>
                   <button id="leaveGameBtn" class="btn-icon-glass danger-color">✕</button>
               </div>
           </div>
+          
           <div class="round-description">
               <span id="roundDesc">-- مطلوب --</span>
           </div>
+
           <div id="adminGameControls" class="admin-round-nav" style="display:none;">
               <button id="prevRoundBtn" class="nav-arrow">❮</button>
               <span style="font-size:12px; opacity:0.7">تغيير الجولة</span>
@@ -155,17 +159,29 @@
     </div>
   </div>
 
-  <div id="fullTableModal" class="modal-overlay">
+  <div id="fameModal" class="modal-overlay" style="display:none;">
+      <div class="modal-content table-modal">
+          <div class="modal-header">
+              <h3 style="color:var(--gold)">🏆 ترتيب الدوري العام</h3>
+              <button id="closeFameBtn" class="close-icon">✕</button>
+          </div>
+          <div id="fameList" class="fame-list"></div>
+      </div>
+  </div>
+
+  <div id="fullTableModal" class="modal-overlay" style="display:none;">
       <div class="modal-content table-modal">
           <div class="modal-header">
               <h3>📊 الجدول الكامل</h3>
               <button id="closeFullTableBtn" class="close-icon">✕</button>
           </div>
-          <div class="table-scroll"><table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table></div>
+          <div class="table-scroll">
+            <table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table>
+          </div>
       </div>
   </div>
 
-  <div id="profileModal" class="modal-overlay">
+  <div id="profileModal" class="modal-overlay" style="display:none;">
       <div class="modal-content">
           <h3>تعديل الملف</h3>
           <div class="input-stack">
@@ -179,17 +195,7 @@
       </div>
   </div>
 
-  <div id="fameModal" class="modal-overlay">
-      <div class="modal-content table-modal">
-          <div class="modal-header">
-              <h3 style="color:var(--gold)">🏆 ترتيب الدوري العام</h3>
-              <button id="closeFameBtn" class="close-icon">✕</button>
-          </div>
-          <div id="fameList" class="fame-list"></div>
-      </div>
-  </div>
-
-  <div id="adminSelectModal" class="modal-overlay">
+  <div id="adminSelectModal" class="modal-overlay" style="display:none;">
       <div class="modal-content">
           <h3>تسليم القيادة 🔑</h3>
           <div id="adminCandidatesList" class="list-selection"></div>
@@ -197,7 +203,7 @@
       </div>
   </div>
 
-  <div id="subModal" class="modal-overlay">
+  <div id="subModal" class="modal-overlay" style="display:none;">
       <div class="modal-content">
           <h3>تبديل اللاعب 🔄</h3>
           <h4 id="subTargetName" style="color:var(--gold)"></h4>
@@ -206,7 +212,7 @@
       </div>
   </div>
 
-  <div id="skipModal" class="modal-overlay">
+  <div id="skipModal" class="modal-overlay" style="display:none;">
     <div class="modal-content text-center">
       <div style="font-size:50px">🃏</div>
       <h4 id="skipType"></h4>
