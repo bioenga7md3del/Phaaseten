@@ -1,5 +1,5 @@
 /* =========================================
-   1. تهيئة Firebase
+   1. إعدادات Firebase
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -15,7 +15,7 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 
 /* =========================================
-   2. الثوابت
+   2. الثوابت والمتغيرات
    ========================================= */
 const GAME_ID = "main_game_room";
 const ROUNDS = 10;
@@ -26,15 +26,19 @@ const PHASE_RULES = [
 ];
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🔥"];
 const STATUS_MSGS = {
-    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥", "ملك الغابة وصل 🦁"],
-    sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏", "مكانك محجوز في القاع 📉"],
-    normal: ["شد حيلك لسه بدري 💪", "ركز في ورقك 🃏", "العب بذكاء 🧠"]
+    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥"],
+    tiger: ["النمر بيخربش.. فاضل تكه 🐯", "عينك على اللي فوق 👀"],
+    normal: ["خليك في الأمان 😐", "العب بذكاء 🎲", "جمع كروتك صح 🃏"],
+    goat: ["يا معزة اهربي 🐐", "الوضع مش مطمن ⚠️"],
+    sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏"]
 };
 
 let state = { me: null, userData: null, isAdmin: false, round: 1, status: 'lobby', players: [] };
 let unsubGame = null;
 let unsubPlayers = null;
+let wakeLock = null;
 const timers = new Map();
+let playerToSubId = null;
 
 /* =========================================
    3. البداية والتحقق
@@ -50,49 +54,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // تعريف الأزرار (Event Listeners)
-    // 1. Auth
-    document.getElementById('doLoginBtn').addEventListener('click', loginUser);
-    document.getElementById('doRegisterBtn').addEventListener('click', registerUser);
-    document.getElementById('goToRegister').addEventListener('click', () => switchScreen('register'));
-    document.getElementById('goToLogin').addEventListener('click', () => switchScreen('login'));
-    document.getElementById('logoutBtn').addEventListener('click', logoutUser);
+    // Wake Lock
+    document.addEventListener('click', async () => { try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){} }, { once: true });
 
-    // 2. Profile
-    document.getElementById('openProfileBtn').addEventListener('click', openProfileModal);
-    document.getElementById('saveProfileChangesBtn').addEventListener('click', saveProfileChanges);
-    document.getElementById('closeProfileModalBtn').addEventListener('click', () => document.getElementById('profileModal').style.display='none');
+    // دالة مساعدة عشان الكود ميموتش لو زرار ناقص
+    const safeClick = (id, func) => {
+        const el = document.getElementById(id);
+        if(el) el.addEventListener('click', func);
+        else console.warn(`Button #${id} not found (Skipped safely)`);
+    };
 
-    // 3. Lobby Actions
-    document.getElementById('startGameBtn').addEventListener('click', startGame);
-    document.getElementById('resetGameBtn').addEventListener('click', resetGame);
-    document.getElementById('factoryResetBtn').addEventListener('click', adminFactoryReset);
-    document.getElementById('showFameBtn').addEventListener('click', showHallOfFame);
+    // تعريف الأزرار (بأمان)
+    safeClick('doLoginBtn', loginUser);
+    safeClick('doRegisterBtn', registerUser);
+    safeClick('goToRegister', () => switchScreen('register'));
+    safeClick('goToLogin', () => switchScreen('login'));
+    safeClick('logoutBtn', logoutUser);
+    safeClick('openProfileBtn', openProfileModal);
+    safeClick('saveProfileChangesBtn', saveProfileChanges);
+    safeClick('closeProfileModalBtn', () => document.getElementById('profileModal').style.display='none');
+    safeClick('startGameBtn', startGame);
+    safeClick('resetGameBtn', resetGame);
+    safeClick('factoryResetBtn', adminFactoryReset);
+    safeClick('showFameBtn', showHallOfFame);
+    safeClick('leaveGameBtn', () => switchScreen('lobby'));
+    safeClick('finishGameBtn', finishGameAndSave);
+    safeClick('viewFullTableBtn', openFullTable);
+    safeClick('prevRoundBtn', () => changeRound(-1));
+    safeClick('nextRoundBtn', () => changeRound(1));
+    safeClick('lobbyChangeAdminBtn', openAdminSelect);
+    safeClick('gameChangeAdminBtn', openAdminSelect);
+    safeClick('closeFullTableBtn', () => document.getElementById('fullTableModal').style.display='none');
+    safeClick('closeModalBtn', () => document.getElementById('skipModal').style.display='none');
+    safeClick('closeSubModalBtn', () => document.getElementById('subModal').style.display='none');
+    safeClick('closeFameBtn', () => document.getElementById('fameModal').style.display='none');
+    safeClick('closeAdminModalBtn', () => document.getElementById('adminSelectModal').style.display='none');
+    safeClick('waBtn', shareWa);
 
-    // 4. Game Actions
-    document.getElementById('leaveGameBtn').addEventListener('click', () => switchScreen('lobby'));
-    document.getElementById('finishGameBtn').addEventListener('click', finishGameAndSave);
-    document.getElementById('viewFullTableBtn').addEventListener('click', openFullTable);
-    
-    // Round Nav
-    document.getElementById('prevRoundBtn').addEventListener('click', () => changeRound(-1));
-    document.getElementById('nextRoundBtn').addEventListener('click', () => changeRound(1));
-    
-    // Admin Switching
-    document.getElementById('lobbyChangeAdminBtn').addEventListener('click', openAdminSelect);
-    document.getElementById('gameChangeAdminBtn').addEventListener('click', openAdminSelect);
-
-    // Modals Close Buttons
-    document.getElementById('closeFullTableBtn').addEventListener('click', () => document.getElementById('fullTableModal').style.display='none');
-    document.getElementById('closeModalBtn').addEventListener('click', () => document.getElementById('skipModal').style.display='none');
-    document.getElementById('closeSubModalBtn').addEventListener('click', () => document.getElementById('subModal').style.display='none');
-    document.getElementById('closeFameBtn').addEventListener('click', () => document.getElementById('fameModal').style.display='none');
-    document.getElementById('closeAdminModalBtn').addEventListener('click', () => document.getElementById('adminSelectModal').style.display='none');
-    
-    // Share
-    document.getElementById('waBtn').addEventListener('click', shareWa);
-
-    initAvatarGrid(); initEditAvatarGrid();
+    // تهيئة الجريد
+    if(document.getElementById('avatarGrid')) initAvatarGrid();
+    if(document.getElementById('editAvatarGrid')) initEditAvatarGrid();
 });
 
 /* =========================================
@@ -100,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================= */
 function initAvatarGrid() {
     const grid = document.getElementById('avatarGrid');
+    if(!grid) return;
     AVATARS.forEach((av, idx) => {
         const div = document.createElement('div'); div.className = `avatar-option ${idx === 0 ? 'selected' : ''}`; div.textContent = av;
         div.onclick = () => { document.querySelectorAll('#avatarGrid .avatar-option').forEach(el => el.classList.remove('selected')); div.classList.add('selected'); document.getElementById('selectedAvatar').value = av; };
@@ -108,6 +110,7 @@ function initAvatarGrid() {
 }
 function initEditAvatarGrid() {
     const grid = document.getElementById('editAvatarGrid');
+    if(!grid) return;
     AVATARS.forEach((av) => {
         const div = document.createElement('div'); div.className = 'avatar-option'; div.textContent = av;
         div.onclick = () => { document.querySelectorAll('#editAvatarGrid .avatar-option').forEach(el => el.classList.remove('selected')); div.classList.add('selected'); document.getElementById('editSelectedAvatar').value = av; };
@@ -120,7 +123,7 @@ async function loginUser() {
     const pass = document.getElementById('loginPass').value;
     if(!email || !pass) return toast('ادخل البيانات', true);
     try { await auth.signInWithEmailAndPassword(email, pass); } 
-    catch(e) { console.error(e); toast('بيانات خطأ (تأكد من تفعيل الايميل في الكونسول)', true); }
+    catch(e) { console.error(e); toast('بيانات خطأ أو الحساب غير موجود', true); }
 }
 
 async function registerUser() {
@@ -129,11 +132,20 @@ async function registerUser() {
     const pass = document.getElementById('regPass').value;
     const avatar = document.getElementById('selectedAvatar').value;
     if(!name || !email || !pass) return toast('أكمل البيانات', true);
+    
+    // التحقق من الاسم
+    const nameCheck = await db.collection('users').where('name', '==', name).get();
+    if(!nameCheck.empty) return toast('الاسم مستخدم بالفعل', true);
+
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
         await db.collection('users').doc(cred.user.uid).set({ name, avatar, email, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
         toast(`تم التسجيل! أهلاً ${name} 🎉`);
-    } catch(e) { console.error(e); toast('خطأ في التسجيل', true); }
+    } catch(e) { 
+        console.error(e); 
+        if(e.code === 'auth/operation-not-allowed') toast('يجب تفعيل Email/Password في فيربيز', true);
+        else toast('خطأ في التسجيل', true); 
+    }
 }
 
 async function loadUserProfile(uid) {
@@ -141,8 +153,10 @@ async function loadUserProfile(uid) {
         const doc = await db.collection('users').doc(uid).get();
         if(doc.exists) {
             state.userData = doc.data();
-            document.getElementById('userNameDisplay').textContent = state.userData.name;
-            document.getElementById('userAvatarDisplay').textContent = state.userData.avatar;
+            const nDisplay = document.getElementById('userNameDisplay');
+            const aDisplay = document.getElementById('userAvatarDisplay');
+            if(nDisplay) nDisplay.textContent = state.userData.name;
+            if(aDisplay) aDisplay.textContent = state.userData.avatar;
             enterGlobalLobby();
         }
     } catch(e) { console.error(e); }
@@ -157,21 +171,15 @@ async function logoutUser() {
    5. منطق اللوبي (Lobby Logic)
    ========================================= */
 async function enterGlobalLobby() {
-    const playerRef = db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me);
-    
-    // 🔥 هنا التغيير: الدخول الافتراضي waiting عشان الأدمن يختار
-    // لكن لو أنا الأدمن، هدخل active عشان مخرجش نفسي بالغلط
-    const isMeAdmin = (state.me === state.userData?.adminUid); // check local logic later
-    
-    await playerRef.set({
-        name: state.userData.name, avatar: state.userData.avatar, uid: state.me,
-        scores: [], 
-        status: 'waiting', // الكل يدخل انتظار
-        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
+    // التأكد من الغرفة
     const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
     if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+    // تسجيل اللاعب (دخول انتظار)
+    await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
+        name: state.userData.name, avatar: state.userData.avatar, uid: state.me,
+        scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
     
     subscribe();
 }
@@ -189,19 +197,17 @@ function subscribe() {
         state.status = d.status || 'lobby';
 
         if(state.status === 'playing') {
-            // لو اللعبة بدأت، وأنا active، ادخل الجيم. لو أنا waiting أفضل في اللوبي
             const mePlayer = state.players.find(p => p.uid === state.me);
             if (mePlayer && mePlayer.status === 'active') {
-                switchScreen('game');
-                renderGameUI();
+                switchScreen('game'); renderGameUI();
             } else {
                 switchScreen('lobby');
-                document.getElementById('lobbySubtitle').textContent = "المباراة جارية... (أنت لست مشاركاً)";
-                renderLobby(); // عشان يشوف مين بيلعب
+                const sub = document.getElementById('lobbySubtitle');
+                if(sub) sub.textContent = "المباراة جارية... (أنت لست مشاركاً)";
+                renderLobby();
             }
         } else {
-            switchScreen('lobby');
-            renderLobby();
+            switchScreen('lobby'); renderLobby();
         }
     });
 
@@ -213,14 +219,21 @@ function subscribe() {
 }
 
 function renderLobby() {
-    const list = document.getElementById('onlinePlayersList'); list.innerHTML = '';
+    const list = document.getElementById('onlinePlayersList'); 
+    if(!list) return;
+    list.innerHTML = '';
     
-    // إظهار تحكم الأدمن
-    document.getElementById('adminLobbyControls').style.display = state.isAdmin ? 'flex' : 'none';
-    document.getElementById('playerLobbyControls').style.display = state.isAdmin ? 'none' : 'flex'; // زر الشرف للاعبين
+    // إظهار التحكم للأدمن فقط
+    const adminPanel = document.getElementById('adminLobbyControls');
+    const playerPanel = document.getElementById('playerLobbyControls');
+    const waitMsg = document.getElementById('playerWaitingMsg');
+    const subTitle = document.getElementById('lobbySubtitle');
+
+    if(adminPanel) adminPanel.style.display = state.isAdmin ? 'flex' : 'none';
+    if(playerPanel) playerPanel.style.display = state.isAdmin ? 'none' : 'flex';
+    if(waitMsg) waitMsg.style.display = state.isAdmin ? 'none' : 'block';
     
-    const title = state.isAdmin ? '👑 اختر التشكيلة الأساسية:' : '📋 قائمة المتواجدين';
-    document.getElementById('lobbySubtitle').textContent = title;
+    if(subTitle) subTitle.textContent = state.isAdmin ? '👑 اختر التشكيلة الأساسية:' : '📋 قائمة المتواجدين';
 
     // ترتيب: الأدمن فوق
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
@@ -253,7 +266,6 @@ async function startGame() {
     const activeCount = state.players.filter(p => p.status === 'active').length;
     if(activeCount < 1) return toast('اختر لاعب واحد على الأقل', true);
     
-    // تأكد أن الأدمن نفسه active عشان يدخل معاهم
     const me = state.players.find(p => p.uid === state.me);
     if(me && me.status !== 'active') {
         if(!confirm('أنت (الأدمن) لم تختر نفسك! ستكون مشاهداً فقط. موافق؟')) return;
@@ -266,28 +278,28 @@ async function startGame() {
    6. منطق اللعبة (Game UI)
    ========================================= */
 function renderGameUI() {
-    // إظهار أدوات الأدمن
-    document.getElementById('adminGameControls').style.display = state.isAdmin ? 'flex' : 'none';
-    document.getElementById('adminFinishControls').style.display = state.isAdmin ? 'flex' : 'none';
+    const adminControls = document.getElementById('adminGameControls');
+    const adminFinish = document.getElementById('adminFinishControls');
+    if(adminControls) adminControls.style.display = state.isAdmin ? 'flex' : 'none';
+    if(adminFinish) adminFinish.style.display = state.isAdmin ? 'flex' : 'none';
     
-    // تحديث الهيدر
-    document.getElementById('roundNum').textContent = state.round;
-    document.getElementById('roundDesc').textContent = PHASE_RULES[state.round - 1] || "";
+    const rNum = document.getElementById('roundNum');
+    const rDesc = document.getElementById('roundDesc');
+    if(rNum) rNum.textContent = state.round;
+    if(rDesc) rDesc.textContent = PHASE_RULES[state.round - 1] || "";
 
-    // فلترة اللاعبين (Active Only)
     const active = state.players.filter(p => p.status === 'active');
     const sorted = active.map(p => ({
         ...p, scores: p.scores || [],
         total: (p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0)
     })).sort((a,b)=>a.total - b.total);
 
-    // كارت الحالة
     const myIdx = sorted.findIndex(p => p.uid === state.me);
     if(myIdx !== -1) updateMyStatusCard(myIdx, sorted.length); 
-    else document.getElementById('myStatusCard').style.display = 'none';
+    else { const c = document.getElementById('myStatusCard'); if(c) c.style.display = 'none'; }
 
-    // رسم الكروت
     const container = document.getElementById('cardsContainer');
+    if(!container) return;
     container.innerHTML = '';
 
     sorted.forEach((p, idx) => {
@@ -356,7 +368,6 @@ window.onScoreInput = function(pid, rIdx, val) {
     timers.set(key, setTimeout(() => saveScore(pid, rIdx, val), 600));
 }
 
-// ... (باقي الدوال: openFullTable, finishGame, resetGame, profile ... زي ما هي) ...
 async function saveScore(pid, rIdx, val) { const num = (val===''||val==='-') ? null : Number(val); const p = state.players.find(x => x.id === pid); let s = p.scores ? [...p.scores] : []; while(s.length < ROUNDS) s.push(null); s[rIdx] = num; await db.collection('rooms').doc(GAME_ID).collection('players').doc(pid).update({ scores: s }); }
 async function changeRound(d) { const newR = Math.min(ROUNDS, Math.max(1, state.round + d)); if(newR !== state.round) await db.collection('rooms').doc(GAME_ID).update({ round: newR }); }
 function getAnimalRank(i, t) { if(i===0) return {icon:'🦁', class:'rank-lion'}; if(t>=2 && i===t-1) return {icon:'🐑', class:'rank-sheep'}; return {icon:'', class:''}; }
@@ -379,4 +390,4 @@ function smartSkip() { const a=state.players.filter(p=>p.status==='active'); if(
 function showModal(n,t) { document.getElementById('skipType').textContent=t; document.getElementById('skipTarget').textContent=n; document.getElementById('skipModal').style.display='flex'; document.getElementById('skipAudio').play(); }
 function toast(m, e=false) { const t=document.getElementById('toast'); t.innerHTML=m; t.className=e?'toast show error':'toast show'; setTimeout(()=>t.classList.remove('show'),3000); }
 function shareWa() { window.open(`https://wa.me/?text=${encodeURIComponent(`يلا Phase 10 🔥\n${window.location.href}`)}`); }
-function switchScreen(s) { ['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id => document.getElementById(id).style.display='none'); if(s==='login') document.getElementById('loginScreen').style.display='block'; if(s==='register') document.getElementById('registerScreen').style.display='block'; if(s==='lobby') document.getElementById('lobbyScreen').style.display='block'; if(s==='game') document.getElementById('gameRoom').style.display='block'; }
+function switchScreen(s) { ['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; }); if(s==='login') document.getElementById('loginScreen').style.display='block'; if(s==='register') document.getElementById('registerScreen').style.display='block'; if(s==='lobby') document.getElementById('lobbyScreen').style.display='block'; if(s==='game') document.getElementById('gameRoom').style.display='block'; }
