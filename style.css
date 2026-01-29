@@ -1,15 +1,14 @@
-/* ===== التأسيس والمتغيرات ===== */
+/* ===== الأساسيات ===== */
 :root {
   --bg-dark: #0f172a;
   --bg-card: rgba(30, 41, 59, 0.7);
   --primary: #6366f1;
-  --primary-dark: #4338ca;
   --accent: #10b981;
   --danger: #ef4444;
   --gold: #fbbf24;
-  --tiger: #f97316; /* برتقالي للنمر */
-  --goat: #94a3b8;  /* رمادي للمعزة */
-  --sheep: #f43f5e; /* أحمر للخروف */
+  --tiger: #f97316;
+  --goat: #94a3b8;
+  --sheep: #f43f5e;
   --text: #f8fafc;
   --text-muted: #94a3b8;
   --border: rgba(148, 163, 184, 0.2);
@@ -28,57 +27,62 @@ body {
 
 .container { max-width: 1000px; margin: 0 auto; }
 
-/* ===== البطاقات ===== */
+/* ===== الكروت ===== */
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: 20px; padding: 20px; margin-bottom: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  animation: fadeIn 0.4s ease-out;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); animation: fadeIn 0.4s ease-out;
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ===== كارت الحالة الشخصية (Status Dashboard) ===== */
-.status-card {
-  display: flex; align-items: center; gap: 15px;
-  padding: 15px; border-width: 2px;
-  transition: all 0.3s ease;
-  margin-bottom: 15px;
-}
+/* ===== كارت الحالة ===== */
+.status-card { display: flex; align-items: center; gap: 15px; padding: 15px; border-width: 2px; transition: all 0.3s ease; margin-bottom: 15px; }
 .status-emoji { font-size: 45px; line-height: 1; }
 .status-content h3 { margin: 0 0 5px 0; font-size: 18px; font-weight: 900; }
 .status-content p { margin: 0; font-size: 14px; font-weight: 600; opacity: 0.9; }
 
-/* 🦁 ستايل الأسد */
 .status-lion { background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--gold); }
 .status-lion h3 { color: var(--gold); }
-
-/* 🐯 ستايل النمر */
 .status-tiger { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--tiger); }
 .status-tiger h3 { color: var(--tiger); }
-
-/* 🐐 ستايل المعزة */
 .status-goat { background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--goat); }
 .status-goat h3 { color: var(--goat); }
-
-/* 🐑 ستايل الخروف */
 .status-sheep { background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(15, 23, 42, 0.8)); border-color: var(--sheep); }
 .status-sheep h3 { color: var(--sheep); }
-
-/* 😐 ستايل العادي */
 .status-normal { background: var(--bg-card); border-color: var(--border); }
 .status-normal h3 { color: var(--text-muted); }
 
-/* ===== النصوص والأزرار ===== */
+/* ===== اللوبي (Lobby) ===== */
+.lobby-list { display: grid; gap: 10px; max-height: 400px; overflow-y: auto; }
+.lobby-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px;
+    border: 1px solid var(--border); transition: 0.2s;
+}
+.lobby-item.selected { background: rgba(16, 185, 129, 0.2); border-color: var(--accent); }
+.lobby-name { font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.check-indicator {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+}
+.lobby-item.selected .check-indicator { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ===== قائمة البدلاء (Bench) ===== */
+.bench-list { display: grid; gap: 8px; margin-top: 15px; max-height: 200px; overflow-y: auto; }
+.bench-item {
+    background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px;
+    text-align: center; cursor: pointer; border: 1px solid transparent;
+}
+.bench-item:hover { border-color: var(--primary); background: rgba(99, 102, 241, 0.2); }
+
+/* ===== العناصر العامة ===== */
 h1 {
   margin: 0 0 10px 0; font-size: 28px; font-weight: 900; text-align: center;
   background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   text-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); user-select: none;
 }
-
 .landing-header { text-align: center; margin-bottom: 20px; }
 .emoji-icon { font-size: 40px; margin-bottom: 10px; }
 .landing-header p { color: var(--text-muted); }
@@ -95,7 +99,6 @@ button:active { top: 3px; box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
 .btn-danger { background: var(--danger); }
 .btn-purple { background: var(--purple); }
 .btn-glass { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); }
-.btn-glass:hover { background: rgba(255,255,255,0.15); }
 
 .input-group { display: grid; gap: 12px; }
 .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -110,13 +113,13 @@ input {
 }
 input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
 
-/* ===== الجدول الاحترافي (Sticky + Animals) ===== */
+/* ===== الجدول ===== */
 .table-container { overflow-x: auto; border-radius: 16px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.4); margin-top: 10px; }
 table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 800px; }
 th, td { padding: 12px 5px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th { background: rgba(30, 41, 59, 0.95); color: var(--text-muted); font-size: 13px; font-weight: 700; height: 50px; user-select: none; }
 
-/* تثبيت الأعمدة RTL */
+/* Sticky Cols */
 th:nth-child(1), td:nth-child(1) { position: sticky; right: 0; z-index: 30; width: 100px; background: #1e293b; border-left: 1px solid var(--border); }
 th:nth-child(2), td:nth-child(2) { position: sticky; right: 100px; z-index: 30; width: 60px; background: #1e293b; font-weight: 900; color: var(--gold); border-left: 1px solid var(--border); }
 th:nth-child(3), td:nth-child(3) { position: sticky; right: 160px; z-index: 30; width: 50px; background: #1e293b; border-left: 3px solid var(--primary); }
@@ -124,53 +127,21 @@ th:nth-child(1), th:nth-child(2), th:nth-child(3) { z-index: 40; background: #0f
 
 .active-col { background: rgba(99, 102, 241, 0.15) !important; border-inline: 1px dashed rgba(99, 102, 241, 0.4); }
 th.active-col { color: var(--primary); border-bottom: 2px solid var(--primary); }
-
 .score-inp { width: 50px; padding: 6px; font-weight: 700; background: transparent; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; text-align: center; }
 .score-inp:focus { background: #1e293b; border-color: var(--primary); }
 .score-inp:disabled { opacity: 0.3; border: none; }
 
-/* 🔥 ألوان صفوف الحيوانات 🔥 */
-.rank-lion td:nth-child(1), .rank-lion td:nth-child(2), .rank-lion td:nth-child(3) {
-  background: linear-gradient(to left, rgba(251, 191, 36, 0.15), rgba(30, 41, 59, 1)); border-bottom: 1px solid rgba(251, 191, 36, 0.3);
-}
+/* Animal Rows */
+.rank-lion td:nth-child(1), .rank-lion td:nth-child(2), .rank-lion td:nth-child(3) { background: linear-gradient(to left, rgba(251, 191, 36, 0.15), rgba(30, 41, 59, 1)); border-bottom: 1px solid rgba(251, 191, 36, 0.3); }
 .rank-lion td:nth-child(2) { color: var(--gold); text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
-
-.rank-tiger td:nth-child(1), .rank-tiger td:nth-child(2), .rank-tiger td:nth-child(3) {
-  background: linear-gradient(to left, rgba(249, 115, 22, 0.1), rgba(30, 41, 59, 1));
-}
+.rank-tiger td:nth-child(1), .rank-tiger td:nth-child(2), .rank-tiger td:nth-child(3) { background: linear-gradient(to left, rgba(249, 115, 22, 0.1), rgba(30, 41, 59, 1)); }
 .rank-tiger td:nth-child(2) { color: var(--tiger); }
-
-.rank-goat td:nth-child(1), .rank-goat td:nth-child(2), .rank-goat td:nth-child(3) {
-  background: linear-gradient(to left, rgba(148, 163, 184, 0.1), rgba(30, 41, 59, 1));
-}
+.rank-goat td:nth-child(1), .rank-goat td:nth-child(2), .rank-goat td:nth-child(3) { background: linear-gradient(to left, rgba(148, 163, 184, 0.1), rgba(30, 41, 59, 1)); }
 .rank-goat td:nth-child(2) { color: var(--goat); }
-
-.rank-sheep td:nth-child(1), .rank-sheep td:nth-child(2), .rank-sheep td:nth-child(3) {
-  background: linear-gradient(to left, rgba(244, 63, 94, 0.15), rgba(30, 41, 59, 1)); border-bottom: 1px solid rgba(244, 63, 94, 0.3);
-}
+.rank-sheep td:nth-child(1), .rank-sheep td:nth-child(2), .rank-sheep td:nth-child(3) { background: linear-gradient(to left, rgba(244, 63, 94, 0.15), rgba(30, 41, 59, 1)); border-bottom: 1px solid rgba(244, 63, 94, 0.3); }
 .rank-sheep td:nth-child(2) { color: var(--sheep); }
 
-/* ===== عناصر أخرى ===== */
-.info-card { padding: 15px; }
-.info-bar { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 15px; }
-.room-badge { background: rgba(255,255,255,0.05); padding: 6px 16px; border-radius: 50px; font-family: monospace; font-size: 16px; letter-spacing: 2px; border: 1px solid var(--border); display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.room-badge:active { background: rgba(255,255,255,0.1); }
-.copy-icon { opacity: 0.6; }
-.top-actions { display: flex; gap: 10px; width: 100%; }
-.wa-btn { flex: 1; font-size: 13px; }
-.exit-btn { flex: 0 0 auto; padding: 0 15px; }
-.admin-controls { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px; text-align: center; }
-.round-nav { display: flex; align-items: center; justify-content: center; gap: 15px; }
-.round-info { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.nav-btn { padding: 8px 15px; }
-.round-display { font-size: 18px; font-weight: bold; color: #fff; user-select: none; }
-.round-desc { font-size: 14px; color: var(--accent); font-weight: 700; }
-.viewer-controls { text-align: center; margin-top: 5px; color: var(--text-muted); }
-.viewer-controls b { color: #fff; }
-.add-player-row { display: flex; gap: 10px; margin-bottom: 15px; }
-.add-btn { flex: 0 0 60px; }
-
-/* Modal & Toast */
+/* Modals */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
 .modal-content { background: #1e293b; border: 1px solid var(--border); padding: 30px; border-radius: 24px; text-align: center; width: 90%; max-width: 360px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -181,9 +152,6 @@ th.active-col { color: var(--primary); border-bottom: 2px solid var(--primary); 
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 .toast.error { border-color: var(--danger); color: #fca5a5; }
 .cleanup-btn { margin-top: 15px; color: var(--text-muted); font-size: 12px; text-decoration: underline; background: none; box-shadow: none; padding: 0; }
-
-/* تخصيص شريط التمرير */
 ::-webkit-scrollbar { height: 8px; width: 8px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
