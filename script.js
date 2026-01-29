@@ -14,12 +14,13 @@ try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 
 const db = firebase.firestore();
 
-// 🔥🔥🔥 الحل السحري لمشكلة 400 Bad Request / Network Error 🔥🔥🔥
-// السطر ده بيجبر الفيربيز يستخدم اتصال HTTP العادي المضمون بدلاً من WebSockets اللي بيقطع
+// 🔥🔥🔥 تصليح إعدادات الاتصال (Final Fix) 🔥🔥🔥
+// بنقفل الكشف التلقائي عشان ميحصلش تعارض مع الإجبار
 db.settings({ 
     experimentalForceLongPolling: true, 
-    merge: true,
-    cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED 
+    experimentalAutoDetectLongPolling: false, 
+    cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+    merge: true
 });
 
 const auth = firebase.auth();
