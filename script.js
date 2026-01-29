@@ -1,5 +1,5 @@
 /* =========================================
-   1. إعدادات Firebase
+   1. تهيئة Firebase
    ========================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -22,10 +22,14 @@ try { db.settings({ merge: true, cacheSizeBytes: firebase.firestore.CACHE_SIZE_U
    ========================================= */
 const GAME_ID = "main_game_room";
 const ROUNDS = 10;
-const PHASE_RULES = ["2 مجموعات (3)", "م (3) + ت (4)", "م (4) + ت (4)", "تسلسل (7)", "تسلسل (8)", "تسلسل (9)", "2 مجموعات (4)", "7 كروت لون واحد", "م (5) + م (2)", "م (5) + م (3)"];
+const PHASE_RULES = [
+    "2 مجموعات (3)", "مجموعة (3) + تسلسل (4)", "مجموعة (4) + تسلسل (4)", "تسلسل (7)",
+    "تسلسل (8)", "تسلسل (9)", "2 مجموعات (4)", "7 كروت لون واحد",
+    "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
+];
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🔥"];
 const STATUS_MSGS = {
-    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥"],
+    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥", "ملك الغابة وصل 🦁"],
     sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏"],
     normal: ["شد حيلك لسه بدري 💪", "ركز في ورقك 🃏", "العب بذكاء 🧠"]
 };
@@ -67,6 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     safeClick('viewFullTableBtn', openFullTable);
     safeClick('prevRoundBtn', () => changeRound(-1));
     safeClick('nextRoundBtn', () => changeRound(1));
+    safeClick('leaderBtn', calcLeader);
+    safeClick('randomSkipBtn', randomSkip);
+    safeClick('smartSkipBtn', smartSkip);
     safeClick('lobbyChangeAdminBtn', openAdminSelect);
     safeClick('gameChangeAdminBtn', openAdminSelect);
     safeClick('closeFullTableBtn', () => document.getElementById('fullTableModal').style.display='none');
@@ -105,12 +112,13 @@ async function loadUserProfile(uid) { try{const d=await db.collection('users').d
 async function logoutUser() { if(state.me) try{await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).delete();}catch(e){} await auth.signOut(); switchScreen('login'); }
 
 /* =========================================
-   5. اللوبي
+   5. اللوبي والمنطق الذكي
    ========================================= */
 async function enterGlobalLobby() {
     const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
     if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     
+    // الدخول دائماً انتظار (waiting)
     await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
         name: state.userData.name, avatar: state.userData.avatar, uid: state.me, scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
@@ -124,11 +132,24 @@ function subscribe() {
         state.isAdmin = (d.admin === state.me);
         if(!d.admin) db.collection('rooms').doc(GAME_ID).update({ admin: state.me });
         state.round = d.round || 1; state.status = d.status || 'lobby';
+        
+        // لو اللعبة شغالة وأنا Active --> ادخل اللعبة
+        // لو اللعبة شغالة وأنا Waiting --> أفضل في اللوبي وشوف رسالة
         if(state.status === 'playing') {
             const mePlayer = state.players.find(p => p.uid === state.me);
-            if (mePlayer && mePlayer.status === 'active') { switchScreen('game'); renderGameUI(); }
-            else { switchScreen('lobby'); document.getElementById('lobbySubtitle').textContent = "المباراة جارية (أنت مشاهد)"; renderLobby(); }
-        } else { switchScreen('lobby'); renderLobby(); }
+            if (mePlayer && mePlayer.status === 'active') { 
+                switchScreen('game'); renderGameUI(); 
+            } else { 
+                switchScreen('lobby'); 
+                document.getElementById('lobbySubtitle').textContent = "";
+                document.getElementById('waitingText').textContent = "🚨 المباراة جارية! تواصل مع الأدمن لإدخالك";
+                renderLobby(); 
+            }
+        } else { 
+            switchScreen('lobby'); 
+            document.getElementById('waitingText').textContent = "في انتظار بدء المباراة...";
+            renderLobby(); 
+        }
     });
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
         state.players = []; snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
@@ -139,16 +160,15 @@ function subscribe() {
 function renderLobby() {
     const list = document.getElementById('onlinePlayersList'); if(!list) return; list.innerHTML = '';
     
-    // إظهار لوحة التحكم للأدمن
     const adminPanel = document.getElementById('adminLobbyControls');
     const waitMsg = document.getElementById('playerWaitingMsg');
     
+    // إظهار لوحة الأدمن فقط للأدمن
     if(adminPanel) adminPanel.style.display = state.isAdmin ? 'flex' : 'none';
+    // إظهار رسالة الانتظار لغير الأدمن
     if(waitMsg) waitMsg.style.display = state.isAdmin ? 'none' : 'block';
     
-    // زر الشرف ظاهر للجميع الآن (التعديل هنا)
-    
-    document.getElementById('lobbySubtitle').textContent = state.isAdmin ? '👑 اختر التشكيلة الأساسية:' : '📋 قائمة المتواجدين';
+    if(state.isAdmin) document.getElementById('lobbySubtitle').textContent = '👑 اختر التشكيلة الأساسية:';
 
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
     sorted.forEach(p => {
@@ -163,8 +183,41 @@ function renderLobby() {
 }
 
 async function togglePlayerStatus(p) {
-    const newS = p.status === 'active' ? 'waiting' : 'active';
-    await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: newS });
+    // 1. الوضع العادي (في اللوبي)
+    if (state.status !== 'playing') {
+        const newS = p.status === 'active' ? 'waiting' : 'active';
+        await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: newS });
+        return;
+    }
+
+    // 2. وضع "الدخول المتأخر" (اللعبة شغالة)
+    if (state.status === 'playing') {
+        if (p.status === 'active') {
+            if(!confirm('هذا اللاعب مشارك بالفعل. هل تريد إخراجه (دكة)؟')) return;
+            await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'waiting' });
+        } else {
+            // حساب عقوبة التأخير (أعلى سكور حالي)
+            const activePlayers = state.players.filter(x => x.status === 'active');
+            let maxScore = 0;
+            if (activePlayers.length > 0) {
+                maxScore = Math.max(...activePlayers.map(x => (x.scores || []).reduce((a,b) => a + (Number(b)||0), 0)));
+            }
+            
+            if(confirm(`⚠️ إضافة لاعب متأخر!\nسيتم إدخال ${p.name} مع عقوبة (${maxScore}) نقطة (مثل أعلى لاعب).\nموافق؟`)) {
+                // نضع العقوبة في الجولة الأولى ونملأ الباقي null
+                let penaltyScores = [];
+                // ممكن نوزعها أو نحطها في أول خانة
+                // الأبسط: نحطها في Round 1 كـ "رصيد مرحل"
+                penaltyScores[0] = maxScore; 
+                
+                await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ 
+                    status: 'active',
+                    scores: penaltyScores 
+                });
+                toast(`تم إدخال ${p.name} بنجاح`);
+            }
+        }
+    }
 }
 
 async function startGame() {
