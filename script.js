@@ -1,4 +1,4 @@
-console.log("🚀 بدء تشغيل السكريبت (نسخة الاستقرار)...");
+console.log("🚀 بدء تشغيل السكريبت (النسخة الكاملة)...");
 
 /* =========================================
    1. إعدادات Firebase
@@ -17,15 +17,15 @@ try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// 🔥 إعدادات الاستقرار (منع التقطيع) 🔥
+// إعدادات الاستقرار (Force Long Polling)
 db.settings({ 
-    experimentalForceLongPolling: true, // عشان يشتغل غصب عن الشبكة
+    experimentalForceLongPolling: true, 
     experimentalAutoDetectLongPolling: false,
     merge: true 
 });
 
 /* =========================================
-   2. المتغيرات
+   2. المتغيرات والثوابت
    ========================================= */
 const GAME_ID = "main_game_room";
 const ROUNDS = 10;
@@ -36,11 +36,18 @@ const PHASE_RULES = [
 ];
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🔥"];
 
+// 🔥🔥🔥 ده الجزء اللي كان ناقص ورجعناه 🔥🔥🔥
+const STATUS_MSGS = {
+    lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥", "ملك الغابة وصل 🦁"],
+    sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏"],
+    normal: ["شد حيلك لسه بدري 💪", "ركز في ورقك 🃏", "العب بذكاء 🧠"]
+};
+
 let state = { me: null, userData: null, isAdmin: false, round: 1, status: 'lobby', players: [] };
 let unsubGame = null;
 let unsubPlayers = null;
 let wakeLock = null;
-let isConnected = false; // 🔥 علم عشان نمنع التكرار
+let isConnected = false; 
 
 /* =========================================
    3. البداية (DOM Ready)
@@ -48,7 +55,6 @@ let isConnected = false; // 🔥 علم عشان نمنع التكرار
 document.addEventListener('DOMContentLoaded', () => {
     console.log("📌 الصفحة جاهزة");
 
-    // 🛑 منع التكرار في Auth Listener
     auth.onAuthStateChanged(async user => {
         if (user && state.me === user.uid && isConnected) {
             console.log("🔄 المستخدم موجود بالفعل، تجاهل التحديث.");
@@ -62,17 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { 
             console.log("👤 لا يوجد مستخدم، العودة للدخول.");
             state.me = null; state.userData = null; 
-            isConnected = false; // ريست للاتصال
+            isConnected = false;
             if(unsubGame) unsubGame(); 
             if(unsubPlayers) unsubPlayers();
             switchScreen('login'); 
         }
     });
 
-    // منع انطفاء الشاشة
     document.addEventListener('click', async () => { try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){} }, { once: true });
 
-    // تعريف الأزرار (Safe Click)
+    // تعريف الأزرار
     const safeClick = (id, func) => { 
         const el = document.getElementById(id); 
         if(el) el.addEventListener('click', func);
@@ -174,12 +179,11 @@ async function loadUserProfile(uid) {
 async function logoutUser() { await auth.signOut(); switchScreen('login'); }
 
 /* =========================================
-   5. اللوبي والاتصال (المنطقة المعدلة)
+   5. اللوبي والاتصال
    ========================================= */
 async function enterGlobalLobby() {
-    // 🛑 لو احنا متصلين أصلاً، متعملش حاجة
     if (isConnected) {
-        console.log("⚠️ تم تجاهل اتصال مكرر.");
+        console.log("⚠️ تجاهل اتصال مكرر.");
         switchScreen('lobby');
         return;
     }
@@ -188,37 +192,30 @@ async function enterGlobalLobby() {
     switchScreen('lobby'); 
     
     try {
-        // تأكد من وجود الغرفة
         const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
         if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
         
-        // سجل وجود اللاعب
         await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
             name: state.userData.name, avatar: state.userData.avatar, uid: state.me, scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         
-        isConnected = true; // ✅ علم إننا اتصلنا خلاص
+        isConnected = true;
         subscribe();
-    } catch(e) {
-        console.error("❌ خطأ اتصال:", e);
-    }
+    } catch(e) { console.error("❌ خطأ اتصال:", e); }
 }
 
 function subscribe() {
-    // 🛑 لو فيه مستمعين شغالين، متعملش جداد (ده اللي كان بيعمل الرعشة)
     if(unsubGame || unsubPlayers) {
-        console.log("⚠️ المستمعين شغالين بالفعل، لن يتم إعادة التحميل.");
+        console.log("⚠️ المستمعين شغالين بالفعل.");
         return;
     }
 
     console.log("📡 بدء استقبال البيانات...");
 
-    // 1. مراقب الغرفة
     unsubGame = db.collection('rooms').doc(GAME_ID).onSnapshot(doc => {
         if(!doc.exists) return; const d = doc.data();
         state.isAdmin = (d.admin === state.me);
         if(!d.admin) db.collection('rooms').doc(GAME_ID).update({ admin: state.me });
-        
         state.round = d.round || 1; 
         state.status = d.status || 'lobby';
         
@@ -230,17 +227,11 @@ function subscribe() {
         } 
     }, err => console.log("Game sync error", err));
 
-    // 2. مراقب اللاعبين (المنطقة الحساسة للرعشة)
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
-        // 🛑 لو الداتا فاضية (بسبب قطع نت لحظي)، متسمحش القائمة عشان متعملش رعشة
-        if (snap.empty && state.players.length > 0) {
-            console.log("⚠️ تحذير: البيانات وصلت فارغة (تجاهل للحفاظ على الاستقرار)");
-            return;
-        }
+        if (snap.empty && state.players.length > 0) return;
 
         let tempPlayers = []; 
         snap.forEach(d => tempPlayers.push({ id: d.id, ...d.data() }));
-        
         state.players = tempPlayers;
         
         renderLobby();
@@ -257,11 +248,6 @@ function subscribe() {
 function renderLobby() {
     const list = document.getElementById('onlinePlayersList'); if(!list) return; 
     
-    // 🛑 تحسين الأداء: لو القائمة هي هي، مترسمش تاني
-    // (ده بيقلل الرعشة جداً)
-    const currentHTML = list.innerHTML;
-    
-    // إنشاء HTML جديد في الذاكرة الأول
     const fragment = document.createDocumentFragment();
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
     
@@ -275,11 +261,9 @@ function renderLobby() {
         fragment.appendChild(item);
     });
 
-    // امسح وارسم الجديد (بسرعة)
     list.innerHTML = '';
     list.appendChild(fragment);
 
-    // تحديث باقي الواجهة
     const adminPanel = document.getElementById('adminLobbyControls');
     const waitMsg = document.getElementById('playerWaitingMsg');
     
@@ -300,7 +284,6 @@ function renderLobby() {
     }
 }
 
-// دالة التبديل
 function switchScreen(s) {
     ['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id => { 
         const el = document.getElementById(id); 
@@ -310,13 +293,18 @@ function switchScreen(s) {
     if(target) target.style.display='block';
 }
 
-// ... باقي الدوال (بدون تغيير جوهري) ...
+/* =========================================
+   6. باقي الوظائف (كما هي)
+   ========================================= */
 function handleStartOrResumeGame() { if (state.status === 'playing') { switchScreen('game'); } else { startGame(); } }
 async function togglePlayerStatus(p) { if (state.status !== 'playing') { const newS = p.status === 'active' ? 'waiting' : 'active'; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: newS }); } else { if (p.status === 'active') { if(!confirm('إخراج اللاعب (دكة)؟')) return; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'waiting' }); } else { const activePlayers = state.players.filter(x => x.status === 'active'); let maxScore = 0; if (activePlayers.length > 0) maxScore = Math.max(...activePlayers.map(x => (x.scores || []).reduce((a,b) => a + (Number(b)||0), 0))); if(confirm(`⚠️ إدخال ${p.name} بعقوبة (${maxScore}) نقطة؟`)) { let penaltyScores = []; penaltyScores[0] = maxScore; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'active', scores: penaltyScores }); toast(`تم إدخال ${p.name}`); } } } }
 async function startGame() { const activeCount = state.players.filter(p => p.status === 'active').length; if(activeCount < 1) return toast('اختر لاعب واحد', true); const me = state.players.find(p => p.uid === state.me); if(me && me.status !== 'active') if(!confirm('أنت (الأدمن) لم تختر نفسك! موافق؟')) return; await db.collection('rooms').doc(GAME_ID).update({ status: 'playing' }); }
+
+// 🔥 هنا كان الخطأ وتم إصلاحه بتعريف STATUS_MSGS فوق 🔥
 function renderGameUI() { const adminBackBtn=document.getElementById('adminBackToLobbyBtn'); const normalLeaveBtn=document.getElementById('leaveGameBtn'); const adminFinish=document.getElementById('adminFinishControls'); const adminControls=document.getElementById('adminGameControls'); if(state.isAdmin){ adminBackBtn.style.display='flex'; normalLeaveBtn.style.display='none'; adminFinish.style.display='flex'; adminControls.style.display='flex'; }else{ adminBackBtn.style.display='none'; normalLeaveBtn.style.display='flex'; adminFinish.style.display='none'; adminControls.style.display='none'; } document.getElementById('roundNum').textContent=state.round; document.getElementById('roundDesc').textContent=PHASE_RULES[state.round-1]||""; const active=state.players.filter(p=>p.status==='active'); const sorted=active.map(p=>({...p,scores:p.scores||[],total:(p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0)})).sort((a,b)=>a.total-b.total); const myIdx=sorted.findIndex(p=>p.uid===state.me); if(myIdx!==-1)updateMyStatusCard(myIdx,sorted.length);else{const c=document.getElementById('myStatusCard');if(c)c.style.display='none';} const container=document.getElementById('cardsContainer'); if(!container)return; container.innerHTML=''; sorted.forEach((p,idx)=>{ const animal=getAnimalRank(idx,sorted.length); const card=document.createElement('div'); let rankClass=''; if(animal.class==='rank-lion')rankClass='card-lion'; if(animal.class==='rank-sheep')rankClass='card-sheep'; if(animal.class==='rank-tiger')rankClass='card-tiger'; if(animal.class==='rank-goat')rankClass='card-goat'; card.className=`player-card ${rankClass} ${p.uid===state.me?'is-me':''}`; const currentScore=(p.scores[state.round-1]!==null&&p.scores[state.round-1]!==undefined)?p.scores[state.round-1]:''; card.innerHTML=`<div class="card-header" onclick="toggleCard(this)"><div class="p-main"><span class="p-avatar">${animal.icon||p.avatar}</span><span class="p-name">${p.name}</span></div><div class="p-score-box">${p.total}</div></div><div class="card-body ${p.uid===state.me?'open':''}">${(p.uid===state.me||state.isAdmin)?`<div class="input-area"><label class="input-label">سكور الجولة ${state.round}</label><input type="number" pattern="[0-9]*" class="big-score-input" value="${currentScore}" oninput="onScoreInput('${p.id}', ${state.round-1}, this.value)" placeholder="-"></div>`:`<div style="text-align:center; padding:10px; opacity:0.6;">${currentScore===''?'جاري اللعب...':`سكور الجولة: <b>${currentScore}</b>`}</div>`}<div class="history-row">${renderHistoryPills(p.scores)}</div>${state.isAdmin?`<button onclick="openSubModalById('${p.id}')" class="btn-text" style="font-size:11px">🔄 تبديل اللاعب</button>`:''}</div>`; container.appendChild(card); }); }
 function renderHistoryPills(scores){let html='';for(let i=0;i<ROUNDS;i++){const val=(scores[i]!==null&&scores[i]!==undefined)?scores[i]:'-';const active=(i===state.round-1)?'active':'';html+=`<div class="hist-pill ${active}"><span>${i+1}</span>${val}</div>`;}return html;}
 window.toggleCard=function(header){header.nextElementSibling.classList.toggle('open');}
+let timers = new Map(); // Timer definition added here to be safe
 window.onScoreInput=function(pid,rIdx,val){const key=`${pid}-${rIdx}`;if(timers.has(key))clearTimeout(timers.get(key));timers.set(key,setTimeout(()=>saveScore(pid,rIdx,val),600));}
 async function saveScore(pid,rIdx,val){const num=(val===''||val==='-')?null:Number(val);const p=state.players.find(x=>x.id===pid);let s=p.scores?[...p.scores]:[];while(s.length<ROUNDS)s.push(null);s[rIdx]=num;await db.collection('rooms').doc(GAME_ID).collection('players').doc(pid).update({scores:s});}
 async function changeRound(d){const newR=Math.min(ROUNDS,Math.max(1,state.round+d));if(newR!==state.round)await db.collection('rooms').doc(GAME_ID).update({round:newR});}
