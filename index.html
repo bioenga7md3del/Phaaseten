@@ -21,32 +21,65 @@
   <div class="container">
     <h1>PHASE 10 👑</h1>
     
-    <div id="registerScreen" class="glass-card">
+    <div id="loginScreen" class="glass-card">
         <div class="landing-header">
-            <div class="emoji-icon">👋</div>
-            <p>أهلاً يا بطل! سجل دخولك للدوري</p>
+            <div class="emoji-icon">🔐</div>
+            <p>سجل دخولك يا بطل</p>
         </div>
         <div class="input-group">
-            <input id="regNameInput" placeholder="اكتب اسمك هنا...">
-            <button id="enterGameBtn" class="btn-primary full-width-btn">تسجيل دخول 🟢</button>
+            <input id="loginEmail" type="email" placeholder="البريد الإلكتروني" style="direction:ltr; text-align:left;">
+            <input id="loginPass" type="password" placeholder="كلمة المرور" style="direction:ltr; text-align:left;">
+            <button id="doLoginBtn" class="btn-primary full-width-btn">دخول 🟢</button>
         </div>
+        <p style="text-align:center; font-size:13px; margin-top:15px; color:var(--text-muted)">
+            معندكش حساب؟ <span id="goToRegister" style="color:var(--gold); cursor:pointer; text-decoration:underline;">أنشئ حساب جديد</span>
+        </p>
+    </div>
+
+    <div id="registerScreen" class="glass-card" style="display:none;">
+        <div class="landing-header">
+            <div class="emoji-icon">📝</div>
+            <p>بيانات اللاعب الجديد</p>
+        </div>
+        <div class="input-group">
+            <input id="regName" placeholder="اسم الشهرة (مثلاً: العالمي)">
+            
+            <label style="font-size:14px; color:var(--text-muted); margin-bottom:-5px;">اختر الأفاتار الخاص بيك:</label>
+            <div id="avatarGrid" class="avatar-grid">
+                </div>
+            <input type="hidden" id="selectedAvatar" value="👤">
+
+            <input id="regEmail" type="email" placeholder="البريد الإلكتروني" style="direction:ltr; text-align:left;">
+            <input id="regPass" type="password" placeholder="كلمة المرور" style="direction:ltr; text-align:left;">
+            
+            <button id="doRegisterBtn" class="btn-success full-width-btn">تسجيل حساب جديد ✨</button>
+        </div>
+        <p style="text-align:center; font-size:13px; margin-top:15px; color:var(--text-muted)">
+            عندك حساب؟ <span id="goToLogin" style="color:var(--primary); cursor:pointer; text-decoration:underline;">سجل دخول</span>
+        </p>
     </div>
 
     <div id="lobbyScreen" class="glass-card" style="display:none;">
         <div class="info-bar">
+            <div class="user-profile-badge">
+                <span id="userAvatarDisplay" style="font-size:24px;">👤</span>
+                <span id="userNameDisplay" style="font-weight:bold;">...</span>
+            </div>
+            <button id="logoutBtn" class="btn-danger" style="padding:5px 15px; font-size:12px;">خروج 🚪</button>
+        </div>
+        
+        <div class="info-bar" style="margin-top:10px;">
             <div id="lobbyHeaderMsg" style="font-weight:bold; color:var(--gold);">...</div>
         </div>
         
         <div id="playerWaitingMsg" style="text-align:center; margin:20px 0; display:none;">
-            <div style="font-size:40px; margin-bottom:10px;">⏳</div>
+            <div class="loader-spinner">⏳</div>
             <p>في انتظار الأدمن يختار التشكيلة...</p>
-            <p style="font-size:12px; color:var(--text-muted)">خليك فاتح الشاشة دي</p>
         </div>
 
         <div id="adminLobbyPanel" style="display:none;">
-            <h3 style="text-align:center;">اختر اللاعبين للمباراة:</h3>
-            <div id="onlinePlayersList" class="lobby-list">
-                </div>
+            <h3 style="text-align:center;">المتواجدون الآن:</h3>
+            <div id="onlinePlayersList" class="lobby-list"></div>
             <button id="startGameBtn" class="btn-success full-width-btn" style="margin-top:20px;">⚽ انطلاق المباراة</button>
             <button id="resetGameBtn" class="btn-danger full-width-btn" style="margin-top:10px; font-size:12px;">تصفير الجولة</button>
         </div>
@@ -55,13 +88,12 @@
     </div>
 
     <div id="gameRoom" style="display:none;">
-      
       <div class="glass-card info-card">
         <div class="info-bar">
           <div class="top-actions">
              <button id="waBtn" class="btn-success wa-btn">واتساب</button>
              <button id="finishGameBtn" class="btn-danger exit-btn" style="display:none;">إنهاء وحفظ 💾</button> 
-             <button id="leaveGameBtn" class="btn-danger exit-btn">خروج</button>
+             <button id="leaveGameBtn" class="btn-danger exit-btn">خروج للوبي</button>
           </div>
         </div>
 
@@ -74,7 +106,7 @@
             </div>
             <button id="nextRoundBtn" class="btn-glass nav-btn">❯</button>
           </div>
-          <button id="changeAdminBtn" class="btn-glass full-width-btn" style="margin-top:10px; font-size:12px;">🔑 تسليم القيادة (تغيير الأدمن)</button>
+          <button id="changeAdminBtn" class="btn-glass full-width-btn" style="margin-top:10px; font-size:12px;">🔑 تغيير الأدمن</button>
         </div>
         
         <div id="viewerControls" class="viewer-controls" style="display:none;">
