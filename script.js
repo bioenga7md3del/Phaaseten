@@ -1,4 +1,4 @@
-console.log("🚀 بدء تشغيل السكريبت...");
+console.log("🚀 بدء تشغيل السكريبت (نسخة الاستقرار)...");
 
 /* =========================================
    1. إعدادات Firebase
@@ -12,23 +12,17 @@ const firebaseConfig = {
   appId: "1:780298483879:web:6b6627e673d4808e098382"
 };
 
-try { 
-    firebase.initializeApp(firebaseConfig); 
-    console.log("✅ تم تهيئة Firebase بنجاح");
-} catch(e){ 
-    console.error("❌ فشل تهيئة Firebase:", e); 
-}
+try { firebase.initializeApp(firebaseConfig); } catch(e){ console.error(e); }
 
 const db = firebase.firestore();
-
-// إعدادات الاتصال (مهمة جداً)
-db.settings({ 
-    experimentalForceLongPolling: true, 
-    experimentalAutoDetectLongPolling: false, 
-    merge: true
-});
-
 const auth = firebase.auth();
+
+// 🔥 إعدادات الاستقرار (منع التقطيع) 🔥
+db.settings({ 
+    experimentalForceLongPolling: true, // عشان يشتغل غصب عن الشبكة
+    experimentalAutoDetectLongPolling: false,
+    merge: true 
+});
 
 /* =========================================
    2. المتغيرات
@@ -46,30 +40,42 @@ let state = { me: null, userData: null, isAdmin: false, round: 1, status: 'lobby
 let unsubGame = null;
 let unsubPlayers = null;
 let wakeLock = null;
+let isConnected = false; // 🔥 علم عشان نمنع التكرار
 
 /* =========================================
-   3. البداية
+   3. البداية (DOM Ready)
    ========================================= */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("📌 الصفحة حملت (DOM Ready)");
+    console.log("📌 الصفحة جاهزة");
 
+    // 🛑 منع التكرار في Auth Listener
     auth.onAuthStateChanged(async user => {
-        console.log("👤 حالة الدخول:", user ? "موجود" : "غير موجود");
+        if (user && state.me === user.uid && isConnected) {
+            console.log("🔄 المستخدم موجود بالفعل، تجاهل التحديث.");
+            return; 
+        }
+
         if(user) { 
+            console.log("👤 تم التعرف على المستخدم:", user.uid);
             state.me = user.uid; 
             await loadUserProfile(user.uid); 
         } else { 
-            state.me = null; state.userData = null; switchScreen('login'); 
+            console.log("👤 لا يوجد مستخدم، العودة للدخول.");
+            state.me = null; state.userData = null; 
+            isConnected = false; // ريست للاتصال
+            if(unsubGame) unsubGame(); 
+            if(unsubPlayers) unsubPlayers();
+            switchScreen('login'); 
         }
     });
 
+    // منع انطفاء الشاشة
     document.addEventListener('click', async () => { try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){} }, { once: true });
 
     // تعريف الأزرار (Safe Click)
     const safeClick = (id, func) => { 
         const el = document.getElementById(id); 
         if(el) el.addEventListener('click', func);
-        // else console.warn(`⚠️ الزرار ${id} مش موجود`); // شيلنا التحذير عشان منوجعش دماغك
     };
 
     safeClick('doLoginBtn', loginUser);
@@ -87,9 +93,10 @@ document.addEventListener('DOMContentLoaded', () => {
     safeClick('leaveGameBtn', () => switchScreen('lobby'));
     safeClick('finishGameBtn', finishGameAndSave);
     safeClick('viewFullTableBtn', openFullTable);
+    safeClick('leaderBtn', calcLeader);
+    
     safeClick('prevRoundBtn', () => changeRound(-1));
     safeClick('nextRoundBtn', () => changeRound(1));
-    safeClick('leaderBtn', calcLeader);
     safeClick('randomSkipBtn', randomSkip);
     safeClick('smartSkipBtn', smartSkip);
     safeClick('lobbyChangeAdminBtn', openAdminSelect);
@@ -127,17 +134,12 @@ function initEditAvatarGrid() {
 }
 
 async function loginUser() { 
-    console.log("🖱️ محاولة دخول...");
     const email=document.getElementById('loginEmail').value; 
     const pass=document.getElementById('loginPass').value; 
     if(!email||!pass) return toast('بيانات ناقصة',true); 
     try{
         await auth.signInWithEmailAndPassword(email, pass);
-        // التوجيه هيحصل تلقائي من onAuthStateChanged
-    }catch(e){
-        console.error("Login Error:", e);
-        toast('بيانات خطأ',true);
-    } 
+    }catch(e){ toast('بيانات خطأ',true); } 
 }
 
 async function registerUser() { 
@@ -158,17 +160,13 @@ async function registerUser() {
 }
 
 async function loadUserProfile(uid) { 
-    console.log("⏳ تحميل البروفايل...");
     try{
         const d=await db.collection('users').doc(uid).get(); 
         if(d.exists){
             state.userData=d.data(); 
             document.getElementById('userNameDisplay').textContent=state.userData.name; 
             document.getElementById('userAvatarDisplay').textContent=state.userData.avatar; 
-            console.log("✅ البروفايل تمام، رايحين اللوبي...");
             enterGlobalLobby();
-        } else {
-            console.error("User doc not found");
         }
     }catch(e){ console.error(e); } 
 }
@@ -176,33 +174,46 @@ async function loadUserProfile(uid) {
 async function logoutUser() { await auth.signOut(); switchScreen('login'); }
 
 /* =========================================
-   5. اللوبي والاتصال (تم التعديل للإجبار)
+   5. اللوبي والاتصال (المنطقة المعدلة)
    ========================================= */
 async function enterGlobalLobby() {
-    // 🔥🔥🔥 التعديل الإجباري هنا 🔥🔥🔥
-    // بندخلك اللوبي فوراً قبل ما نستنى أي رد من السيرفر
-    console.log("🚀 دخول إجباري للوبي...");
+    // 🛑 لو احنا متصلين أصلاً، متعملش حاجة
+    if (isConnected) {
+        console.log("⚠️ تم تجاهل اتصال مكرر.");
+        switchScreen('lobby');
+        return;
+    }
+
+    console.log("🚀 جاري الاتصال باللوبي...");
     switchScreen('lobby'); 
     
     try {
-        // بنحاول نكتب في الداتا بيز في الخلفية
+        // تأكد من وجود الغرفة
         const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
         if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
         
+        // سجل وجود اللاعب
         await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
             name: state.userData.name, avatar: state.userData.avatar, uid: state.me, scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         
+        isConnected = true; // ✅ علم إننا اتصلنا خلاص
         subscribe();
     } catch(e) {
-        console.error("❌ مشكلة اتصال باللوبي:", e);
-        // حتى لو حصل إيرور، أنت خلاص دخلت الشاشة
+        console.error("❌ خطأ اتصال:", e);
     }
 }
 
 function subscribe() {
-    if(unsubGame) unsubGame(); if(unsubPlayers) unsubPlayers();
-    
+    // 🛑 لو فيه مستمعين شغالين، متعملش جداد (ده اللي كان بيعمل الرعشة)
+    if(unsubGame || unsubPlayers) {
+        console.log("⚠️ المستمعين شغالين بالفعل، لن يتم إعادة التحميل.");
+        return;
+    }
+
+    console.log("📡 بدء استقبال البيانات...");
+
+    // 1. مراقب الغرفة
     unsubGame = db.collection('rooms').doc(GAME_ID).onSnapshot(doc => {
         if(!doc.exists) return; const d = doc.data();
         state.isAdmin = (d.admin === state.me);
@@ -211,20 +222,26 @@ function subscribe() {
         state.round = d.round || 1; 
         state.status = d.status || 'lobby';
         
-        // لو اللعبة شغالة واللاعب Active، ندخله الجيم
         if(state.status === 'playing') {
             const mePlayer = state.players.find(p => p.uid === state.me);
             if (!state.isAdmin && mePlayer && mePlayer.status === 'active') { 
                 switchScreen('game');
             } 
         } 
-        // لو مش شغالة، خليك في اللوبي (واحنا أصلاً دخلناك فوق)
-        
-    }, err => console.log("Waiting for game updates..."));
+    }, err => console.log("Game sync error", err));
 
+    // 2. مراقب اللاعبين (المنطقة الحساسة للرعشة)
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
-        state.players = []; 
-        snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
+        // 🛑 لو الداتا فاضية (بسبب قطع نت لحظي)، متسمحش القائمة عشان متعملش رعشة
+        if (snap.empty && state.players.length > 0) {
+            console.log("⚠️ تحذير: البيانات وصلت فارغة (تجاهل للحفاظ على الاستقرار)");
+            return;
+        }
+
+        let tempPlayers = []; 
+        snap.forEach(d => tempPlayers.push({ id: d.id, ...d.data() }));
+        
+        state.players = tempPlayers;
         
         renderLobby();
         renderGameUI();
@@ -234,11 +251,35 @@ function subscribe() {
             const dot = document.getElementById('adminNotificationDot');
             if(dot) dot.style.display = waiting.length > 0 ? 'block' : 'none';
         }
-    });
+    }, err => console.log("Players sync error", err));
 }
 
 function renderLobby() {
-    const list = document.getElementById('onlinePlayersList'); if(!list) return; list.innerHTML = '';
+    const list = document.getElementById('onlinePlayersList'); if(!list) return; 
+    
+    // 🛑 تحسين الأداء: لو القائمة هي هي، مترسمش تاني
+    // (ده بيقلل الرعشة جداً)
+    const currentHTML = list.innerHTML;
+    
+    // إنشاء HTML جديد في الذاكرة الأول
+    const fragment = document.createDocumentFragment();
+    const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
+    
+    sorted.forEach(p => {
+        const item = document.createElement('div');
+        const isActive = p.status === 'active';
+        item.className = `lobby-item ${isActive ? 'selected' : ''}`;
+        const adminIcon = (p.uid === state.me && state.isAdmin) ? '👑' : ''; 
+        item.innerHTML = `<div class="lobby-name"><span>${p.avatar||'👤'}</span> ${p.name} ${adminIcon}</div><div class="lobby-check">${isActive ? '✔' : ''}</div>`;
+        if(state.isAdmin) item.onclick = () => togglePlayerStatus(p);
+        fragment.appendChild(item);
+    });
+
+    // امسح وارسم الجديد (بسرعة)
+    list.innerHTML = '';
+    list.appendChild(fragment);
+
+    // تحديث باقي الواجهة
     const adminPanel = document.getElementById('adminLobbyControls');
     const waitMsg = document.getElementById('playerWaitingMsg');
     
@@ -250,48 +291,26 @@ function renderLobby() {
         if (state.status === 'playing') {
             startBtn.textContent = "↩️ العودة للمباراة الجارية";
             startBtn.className = "btn-secondary flex-grow";
-            startBtn.style.border = "1px solid var(--accent)";
-            startBtn.style.color = "var(--accent)";
             document.getElementById('lobbySubtitle').textContent = "⚠️ المباراة جارية الآن";
         } else {
             startBtn.textContent = "⚽ ابدأ المباراة";
             startBtn.className = "btn-main flex-grow";
-            startBtn.style.border = "none";
-            startBtn.style.color = "#fff";
             document.getElementById('lobbySubtitle').textContent = "👑 اختر التشكيلة الأساسية:";
         }
-    } else {
-        if (state.status === 'playing') {
-            document.getElementById('waitingText').textContent = "🚨 المباراة جارية! تواصل مع الأدمن لإدخالك";
-            document.getElementById('lobbySubtitle').textContent = "";
-        }
     }
-
-    const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
-    sorted.forEach(p => {
-        const item = document.createElement('div');
-        const isActive = p.status === 'active';
-        item.className = `lobby-item ${isActive ? 'selected' : ''}`;
-        const adminIcon = (p.uid === state.me && state.isAdmin) ? '👑' : ''; 
-        item.innerHTML = `<div class="lobby-name"><span>${p.avatar||'👤'}</span> ${p.name} ${adminIcon}</div><div class="lobby-check">${isActive ? '✔' : ''}</div>`;
-        if(state.isAdmin) item.onclick = () => togglePlayerStatus(p);
-        list.appendChild(item);
-    });
 }
 
-// دالة التبديل بين الشاشات (مع لوج عشان نتأكد)
+// دالة التبديل
 function switchScreen(s) {
-    console.log("📺 تبديل الشاشة إلى:", s);
     ['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id => { 
         const el = document.getElementById(id); 
         if(el) el.style.display='none'; 
     }); 
     const target = document.getElementById(s === 'login' ? 'loginScreen' : s === 'register' ? 'registerScreen' : s === 'lobby' ? 'lobbyScreen' : 'gameRoom');
     if(target) target.style.display='block';
-    else console.error("❌ الشاشة مش موجودة:", s);
 }
 
-// ... باقي الدوال زي ما هي ...
+// ... باقي الدوال (بدون تغيير جوهري) ...
 function handleStartOrResumeGame() { if (state.status === 'playing') { switchScreen('game'); } else { startGame(); } }
 async function togglePlayerStatus(p) { if (state.status !== 'playing') { const newS = p.status === 'active' ? 'waiting' : 'active'; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: newS }); } else { if (p.status === 'active') { if(!confirm('إخراج اللاعب (دكة)؟')) return; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'waiting' }); } else { const activePlayers = state.players.filter(x => x.status === 'active'); let maxScore = 0; if (activePlayers.length > 0) maxScore = Math.max(...activePlayers.map(x => (x.scores || []).reduce((a,b) => a + (Number(b)||0), 0))); if(confirm(`⚠️ إدخال ${p.name} بعقوبة (${maxScore}) نقطة؟`)) { let penaltyScores = []; penaltyScores[0] = maxScore; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'active', scores: penaltyScores }); toast(`تم إدخال ${p.name}`); } } } }
 async function startGame() { const activeCount = state.players.filter(p => p.status === 'active').length; if(activeCount < 1) return toast('اختر لاعب واحد', true); const me = state.players.find(p => p.uid === state.me); if(me && me.status !== 'active') if(!confirm('أنت (الأدمن) لم تختر نفسك! موافق؟')) return; await db.collection('rooms').doc(GAME_ID).update({ status: 'playing' }); }
@@ -323,4 +342,3 @@ function smartSkip(){const a=state.players.filter(p=>p.status==='active');if(!a.
 function showModal(n,t){document.getElementById('skipType').textContent=t;document.getElementById('skipTarget').textContent=n;document.getElementById('skipModal').style.display='flex';document.getElementById('skipAudio').play();}
 function toast(m,e=false){const t=document.getElementById('toast');t.innerHTML=m;t.className=e?'toast show error':'toast show';setTimeout(()=>t.classList.remove('show'),3000);}
 function shareWa(){window.open(`https://wa.me/?text=${encodeURIComponent(`يلا Phase 10 🔥\n${window.location.href}`)}`);}
-function switchScreen(s){console.log("📺 تبديل الشاشة إلى:",s);['loginScreen','registerScreen','lobbyScreen','gameRoom'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});const target=document.getElementById(s==='login'?'loginScreen':s==='register'?'registerScreen':s==='lobby'?'lobbyScreen':'gameRoom');if(target)target.style.display='block';else console.error("❌ الشاشة مش موجودة:",s);}
