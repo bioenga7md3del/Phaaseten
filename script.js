@@ -139,6 +139,8 @@ async function enterGlobalLobby() {
 
 function subscribe() {
     if(unsubGame) unsubGame(); if(unsubPlayers) unsubPlayers();
+    
+    // مراقب حالة الغرفة (عشان ينقلك بين اللوبي واللعبة)
     unsubGame = db.collection('rooms').doc(GAME_ID).onSnapshot(doc => {
         if(!doc.exists) return; const d = doc.data();
         state.isAdmin = (d.admin === state.me);
@@ -147,21 +149,36 @@ function subscribe() {
         
         if(state.status === 'playing') {
             const mePlayer = state.players.find(p => p.uid === state.me);
-            // لو أنا مش أدمن، اسحبني فوراً
+            // لو أنا لاعب نشط ومش أدمن -> ادخل اللعبة
             if (!state.isAdmin && mePlayer && mePlayer.status === 'active') { 
-                switchScreen('game'); renderGameUI(); 
+                switchScreen('game');
             } 
-            // لو أنا أدمن، خليني مكاني بس حدث البيانات
-            else {
-               if(document.getElementById('lobbyScreen').style.display === 'block') renderLobby();
-               if(document.getElementById('gameRoom').style.display === 'block') renderGameUI();
-            }
+            // لو أنا أدمن، أو لاعب انتظار -> افضل في مكاني وحدث البيانات
+            // (الريندر هيحصل تحت)
         } else { 
             switchScreen('lobby'); 
             document.getElementById('waitingText').textContent = "في انتظار بدء المباراة..."; 
-            renderLobby(); 
         }
     });
+
+    // مراقب اللاعبين (هو ده اللي كان فيه المشكلة)
+    unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
+        state.players = []; 
+        snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
+        
+        // 🔥 التعديل هنا: ارسم دايماً بدون شروط 🔥
+        // الكود هيرسم في الخلفية حتى لو الشاشة لسه مش ظاهرة، عشان لما تظهر تلاقي البيانات جاهزة
+        renderLobby();
+        renderGameUI();
+        
+        // التنبيهات للأدمن
+        if(state.isAdmin && state.status === 'playing') {
+            const waiting = state.players.filter(p => p.status === 'waiting');
+            const dot = document.getElementById('adminNotificationDot');
+            if(dot) dot.style.display = waiting.length > 0 ? 'block' : 'none';
+        }
+    });
+}
 
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
         state.players = []; snap.forEach(d => state.players.push({ id: d.id, ...d.data() }));
