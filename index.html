@@ -9,13 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-  
   <link rel="stylesheet" href="style.css">
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
@@ -26,60 +24,44 @@
     <div id="registerScreen" class="glass-card">
         <div class="landing-header">
             <div class="emoji-icon">👋</div>
-            <p>أهلاً يا بطل! عرفنا بيك</p>
+            <p>أهلاً يا بطل! سجل دخولك للدوري</p>
         </div>
         <div class="input-group">
-            <input id="regNameInput" placeholder="اكتب اسمك أو لقبك هنا...">
-            <button id="saveProfileBtn" class="btn-primary full-width-btn">حفظ ودخول 💾</button>
+            <input id="regNameInput" placeholder="اكتب اسمك هنا...">
+            <button id="enterGameBtn" class="btn-primary full-width-btn">تسجيل دخول 🟢</button>
         </div>
-    </div>
-
-    <div id="landingScreen" class="glass-card" style="display:none;">
-      <div class="landing-header">
-        <h3 id="welcomeMsg" style="color:var(--gold)"></h3>
-        <p>أنشئ غرفة أو ادخل كود غرفة موجودة</p>
-      </div>
-
-      <div class="input-group">
-        <input id="roomInput" type="number" inputmode="numeric" placeholder="كود الغرفة">
-        <div class="action-buttons">
-          <button id="createBtn" class="btn-success">✨ إنشاء</button>
-          <button id="joinBtn" class="btn-primary">🚀 دخول</button>
-        </div>
-      </div>
-      <div class="cleanup-section">
-         <button id="cleanBtn" class="cleanup-btn">🧹 تنظيف الغرف القديمة</button>
-      </div>
     </div>
 
     <div id="lobbyScreen" class="glass-card" style="display:none;">
         <div class="info-bar">
-            <div class="room-badge" id="lobbyCodeDisplay">------</div>
-            <button id="exitLobbyBtn" class="btn-danger">خروج</button>
+            <div id="lobbyHeaderMsg" style="font-weight:bold; color:var(--gold);">...</div>
         </div>
         
-        <div style="text-align:center; margin-bottom:15px;">
-            <h3>صالة الانتظار 🛋️</h3>
-            <p id="lobbyMsg">في انتظار الأدمن لبدء المباراة...</p>
+        <div id="playerWaitingMsg" style="text-align:center; margin:20px 0; display:none;">
+            <div style="font-size:40px; margin-bottom:10px;">⏳</div>
+            <p>في انتظار الأدمن يختار التشكيلة...</p>
+            <p style="font-size:12px; color:var(--text-muted)">خليك فاتح الشاشة دي</p>
         </div>
 
-        <div id="lobbyPlayersList" class="lobby-list">
-            </div>
-
-        <button id="startGameBtn" class="btn-success full-width-btn" style="display:none; margin-top:20px;">⚽ صفارة البداية</button>
+        <div id="adminLobbyPanel" style="display:none;">
+            <h3 style="text-align:center;">اختر اللاعبين للمباراة:</h3>
+            <div id="onlinePlayersList" class="lobby-list">
+                </div>
+            <button id="startGameBtn" class="btn-success full-width-btn" style="margin-top:20px;">⚽ انطلاق المباراة</button>
+            <button id="resetGameBtn" class="btn-danger full-width-btn" style="margin-top:10px; font-size:12px;">تصفير الجولة</button>
+        </div>
+        
+        <button id="showFameBtn" class="btn-glass full-width-btn" style="margin-top:20px; border-color:var(--gold); color:var(--gold);">🏆 لوحة الشرف</button>
     </div>
 
     <div id="gameRoom" style="display:none;">
       
       <div class="glass-card info-card">
         <div class="info-bar">
-          <div class="room-badge" id="copyCodeBtn">
-            <span id="displayCode">------</span>
-            <span class="copy-icon">📋</span>
-          </div>
           <div class="top-actions">
-             <button id="waBtn" class="btn-success wa-btn">واتساب 💬</button>
-             <button id="endGameBtn" class="btn-danger exit-btn">خروج</button>
+             <button id="waBtn" class="btn-success wa-btn">واتساب</button>
+             <button id="finishGameBtn" class="btn-danger exit-btn" style="display:none;">إنهاء وحفظ 💾</button> 
+             <button id="leaveGameBtn" class="btn-danger exit-btn">خروج</button>
           </div>
         </div>
 
@@ -92,6 +74,7 @@
             </div>
             <button id="nextRoundBtn" class="btn-glass nav-btn">❯</button>
           </div>
+          <button id="changeAdminBtn" class="btn-glass full-width-btn" style="margin-top:10px; font-size:12px;">🔑 تسليم القيادة (تغيير الأدمن)</button>
         </div>
         
         <div id="viewerControls" class="viewer-controls" style="display:none;">
@@ -125,7 +108,6 @@
         </table>
       </div>
     </div>
-
   </div>
 
   <div id="skipModal" class="modal-overlay">
@@ -142,12 +124,26 @@
       <div class="modal-icon">🔄</div>
       <h4>تبديل اللاعب</h4>
       <h3 id="subTargetName" style="color:var(--gold)"></h3>
-      <p style="font-size:12px; color:var(--text-muted)">اختر البديل من الاحتياطي:</p>
-      
-      <div id="benchList" class="bench-list">
-          </div>
-      
+      <div id="benchList" class="bench-list"></div>
       <button id="closeSubModalBtn" class="btn-danger full-width-btn" style="margin-top:10px">إلغاء</button>
+    </div>
+  </div>
+
+  <div id="fameModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; max-height: 80vh; overflow-y: auto;">
+      <div class="modal-icon">🏆</div>
+      <h3 style="color:var(--gold)">سجل الأبطال</h3>
+      <div id="fameList" class="fame-list"></div>
+      <button id="closeFameBtn" class="btn-primary full-width-btn" style="margin-top:15px">إغلاق</button>
+    </div>
+  </div>
+
+  <div id="adminSelectModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-icon">🔑</div>
+      <h3>اختر الأدمن الجديد</h3>
+      <div id="adminCandidatesList" class="lobby-list" style="max-height:200px; overflow-y:auto; margin-top:10px;"></div>
+      <button id="closeAdminModalBtn" class="btn-danger full-width-btn" style="margin-top:15px">إلغاء</button>
     </div>
   </div>
 
