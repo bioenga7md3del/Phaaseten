@@ -1,4 +1,4 @@
-console.log("🚀 بدء تشغيل السكريبت (النسخة الكاملة)...");
+console.log("🚀 تشغيل النسخة المحدثة (إصلاح الجولات)...");
 
 /* =========================================
    1. إعدادات Firebase
@@ -36,7 +36,6 @@ const PHASE_RULES = [
 ];
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🔥"];
 
-// 🔥🔥🔥 ده الجزء اللي كان ناقص ورجعناه 🔥🔥🔥
 const STATUS_MSGS = {
     lion: ["يا عم الناس.. محدش قدك 🦁", "القمة بتاعتك وبس 👑", "مسيطر على السيرفر 🔥", "ملك الغابة وصل 🦁"],
     sheep: ["فوق يا اسطى.. البرسيم نازل 🐑", "يا فضيحتك وسط القبائل 😂", "الخروف وصل 👏"],
@@ -56,17 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("📌 الصفحة جاهزة");
 
     auth.onAuthStateChanged(async user => {
-        if (user && state.me === user.uid && isConnected) {
-            console.log("🔄 المستخدم موجود بالفعل، تجاهل التحديث.");
-            return; 
-        }
+        if (user && state.me === user.uid && isConnected) return;
 
         if(user) { 
-            console.log("👤 تم التعرف على المستخدم:", user.uid);
             state.me = user.uid; 
             await loadUserProfile(user.uid); 
         } else { 
-            console.log("👤 لا يوجد مستخدم، العودة للدخول.");
             state.me = null; state.userData = null; 
             isConnected = false;
             if(unsubGame) unsubGame(); 
@@ -100,8 +94,10 @@ document.addEventListener('DOMContentLoaded', () => {
     safeClick('viewFullTableBtn', openFullTable);
     safeClick('leaderBtn', calcLeader);
     
+    // 🔥 ربط أزرار الجولات 🔥
     safeClick('prevRoundBtn', () => changeRound(-1));
     safeClick('nextRoundBtn', () => changeRound(1));
+    
     safeClick('randomSkipBtn', randomSkip);
     safeClick('smartSkipBtn', smartSkip);
     safeClick('lobbyChangeAdminBtn', openAdminSelect);
@@ -182,61 +178,51 @@ async function logoutUser() { await auth.signOut(); switchScreen('login'); }
    5. اللوبي والاتصال
    ========================================= */
 async function enterGlobalLobby() {
-    if (isConnected) {
-        console.log("⚠️ تجاهل اتصال مكرر.");
-        switchScreen('lobby');
-        return;
-    }
-
-    console.log("🚀 جاري الاتصال باللوبي...");
+    if (isConnected) { switchScreen('lobby'); return; }
     switchScreen('lobby'); 
-    
     try {
         const gameDoc = await db.collection('rooms').doc(GAME_ID).get();
         if(!gameDoc.exists) await db.collection('rooms').doc(GAME_ID).set({ admin: state.me, round: 1, status: 'lobby', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        
         await db.collection('rooms').doc(GAME_ID).collection('players').doc(state.me).set({
             name: state.userData.name, avatar: state.userData.avatar, uid: state.me, scores: [], status: 'waiting', lastSeen: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
-        
         isConnected = true;
         subscribe();
     } catch(e) { console.error("❌ خطأ اتصال:", e); }
 }
 
 function subscribe() {
-    if(unsubGame || unsubPlayers) {
-        console.log("⚠️ المستمعين شغالين بالفعل.");
-        return;
-    }
-
-    console.log("📡 بدء استقبال البيانات...");
+    if(unsubGame || unsubPlayers) return;
 
     unsubGame = db.collection('rooms').doc(GAME_ID).onSnapshot(doc => {
         if(!doc.exists) return; const d = doc.data();
         state.isAdmin = (d.admin === state.me);
         if(!d.admin) db.collection('rooms').doc(GAME_ID).update({ admin: state.me });
-        state.round = d.round || 1; 
+        
+        // تحديث رقم الجولة من السيرفر
+        state.round = Number(d.round) || 1; 
         state.status = d.status || 'lobby';
         
         if(state.status === 'playing') {
             const mePlayer = state.players.find(p => p.uid === state.me);
             if (!state.isAdmin && mePlayer && mePlayer.status === 'active') { 
                 switchScreen('game');
-            } 
+            } else if (state.isAdmin) {
+                // لو أنا الأدمن والجيم شغال، لازم أحدث واجهة الجيم حتى لو أنا لسه فيها
+                if(document.getElementById('gameRoom').style.display === 'block') {
+                    renderGameUI();
+                }
+            }
         } 
     }, err => console.log("Game sync error", err));
 
     unsubPlayers = db.collection('rooms').doc(GAME_ID).collection('players').onSnapshot(snap => {
         if (snap.empty && state.players.length > 0) return;
-
         let tempPlayers = []; 
         snap.forEach(d => tempPlayers.push({ id: d.id, ...d.data() }));
         state.players = tempPlayers;
-        
         renderLobby();
         renderGameUI();
-        
         if(state.isAdmin && state.status === 'playing') {
             const waiting = state.players.filter(p => p.status === 'waiting');
             const dot = document.getElementById('adminNotificationDot');
@@ -247,10 +233,8 @@ function subscribe() {
 
 function renderLobby() {
     const list = document.getElementById('onlinePlayersList'); if(!list) return; 
-    
     const fragment = document.createDocumentFragment();
     const sorted = [...state.players].sort((a,b) => (a.uid === state.me ? -1 : 0));
-    
     sorted.forEach(p => {
         const item = document.createElement('div');
         const isActive = p.status === 'active';
@@ -260,7 +244,6 @@ function renderLobby() {
         if(state.isAdmin) item.onclick = () => togglePlayerStatus(p);
         fragment.appendChild(item);
     });
-
     list.innerHTML = '';
     list.appendChild(fragment);
 
@@ -294,20 +277,93 @@ function switchScreen(s) {
 }
 
 /* =========================================
-   6. باقي الوظائف (كما هي)
+   6. الوظائف وتغيير الجولات (تم الإصلاح هنا)
    ========================================= */
+
+// 🔥 دالة تغيير الجولة المعدلة 🔥
+async function changeRound(d) {
+    // 1. تأكد إن الرقم الحالي رقم صحيح مش نص
+    const current = parseInt(state.round) || 1;
+    
+    // 2. احسب الجولة الجديدة
+    const newR = Math.min(ROUNDS, Math.max(1, current + d));
+    
+    // 3. لو فيه تغيير، نفذه
+    if(newR !== current) {
+        console.log(`Switching round from ${current} to ${newR}`);
+        
+        // تحديث محلي فوراً (عشان السرعة)
+        state.round = newR;
+        document.getElementById('roundNum').textContent = newR;
+        document.getElementById('roundDesc').textContent = PHASE_RULES[newR - 1] || "";
+        
+        // تحديث الداتا بيز
+        await db.collection('rooms').doc(GAME_ID).update({ round: newR });
+        
+        // تنبيه
+        toast(`تم الانتقال للجولة ${newR}`);
+    }
+}
+
 function handleStartOrResumeGame() { if (state.status === 'playing') { switchScreen('game'); } else { startGame(); } }
 async function togglePlayerStatus(p) { if (state.status !== 'playing') { const newS = p.status === 'active' ? 'waiting' : 'active'; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: newS }); } else { if (p.status === 'active') { if(!confirm('إخراج اللاعب (دكة)؟')) return; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'waiting' }); } else { const activePlayers = state.players.filter(x => x.status === 'active'); let maxScore = 0; if (activePlayers.length > 0) maxScore = Math.max(...activePlayers.map(x => (x.scores || []).reduce((a,b) => a + (Number(b)||0), 0))); if(confirm(`⚠️ إدخال ${p.name} بعقوبة (${maxScore}) نقطة؟`)) { let penaltyScores = []; penaltyScores[0] = maxScore; await db.collection('rooms').doc(GAME_ID).collection('players').doc(p.id).update({ status: 'active', scores: penaltyScores }); toast(`تم إدخال ${p.name}`); } } } }
 async function startGame() { const activeCount = state.players.filter(p => p.status === 'active').length; if(activeCount < 1) return toast('اختر لاعب واحد', true); const me = state.players.find(p => p.uid === state.me); if(me && me.status !== 'active') if(!confirm('أنت (الأدمن) لم تختر نفسك! موافق؟')) return; await db.collection('rooms').doc(GAME_ID).update({ status: 'playing' }); }
 
-// 🔥 هنا كان الخطأ وتم إصلاحه بتعريف STATUS_MSGS فوق 🔥
-function renderGameUI() { const adminBackBtn=document.getElementById('adminBackToLobbyBtn'); const normalLeaveBtn=document.getElementById('leaveGameBtn'); const adminFinish=document.getElementById('adminFinishControls'); const adminControls=document.getElementById('adminGameControls'); if(state.isAdmin){ adminBackBtn.style.display='flex'; normalLeaveBtn.style.display='none'; adminFinish.style.display='flex'; adminControls.style.display='flex'; }else{ adminBackBtn.style.display='none'; normalLeaveBtn.style.display='flex'; adminFinish.style.display='none'; adminControls.style.display='none'; } document.getElementById('roundNum').textContent=state.round; document.getElementById('roundDesc').textContent=PHASE_RULES[state.round-1]||""; const active=state.players.filter(p=>p.status==='active'); const sorted=active.map(p=>({...p,scores:p.scores||[],total:(p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0)})).sort((a,b)=>a.total-b.total); const myIdx=sorted.findIndex(p=>p.uid===state.me); if(myIdx!==-1)updateMyStatusCard(myIdx,sorted.length);else{const c=document.getElementById('myStatusCard');if(c)c.style.display='none';} const container=document.getElementById('cardsContainer'); if(!container)return; container.innerHTML=''; sorted.forEach((p,idx)=>{ const animal=getAnimalRank(idx,sorted.length); const card=document.createElement('div'); let rankClass=''; if(animal.class==='rank-lion')rankClass='card-lion'; if(animal.class==='rank-sheep')rankClass='card-sheep'; if(animal.class==='rank-tiger')rankClass='card-tiger'; if(animal.class==='rank-goat')rankClass='card-goat'; card.className=`player-card ${rankClass} ${p.uid===state.me?'is-me':''}`; const currentScore=(p.scores[state.round-1]!==null&&p.scores[state.round-1]!==undefined)?p.scores[state.round-1]:''; card.innerHTML=`<div class="card-header" onclick="toggleCard(this)"><div class="p-main"><span class="p-avatar">${animal.icon||p.avatar}</span><span class="p-name">${p.name}</span></div><div class="p-score-box">${p.total}</div></div><div class="card-body ${p.uid===state.me?'open':''}">${(p.uid===state.me||state.isAdmin)?`<div class="input-area"><label class="input-label">سكور الجولة ${state.round}</label><input type="number" pattern="[0-9]*" class="big-score-input" value="${currentScore}" oninput="onScoreInput('${p.id}', ${state.round-1}, this.value)" placeholder="-"></div>`:`<div style="text-align:center; padding:10px; opacity:0.6;">${currentScore===''?'جاري اللعب...':`سكور الجولة: <b>${currentScore}</b>`}</div>`}<div class="history-row">${renderHistoryPills(p.scores)}</div>${state.isAdmin?`<button onclick="openSubModalById('${p.id}')" class="btn-text" style="font-size:11px">🔄 تبديل اللاعب</button>`:''}</div>`; container.appendChild(card); }); }
+function renderGameUI() { 
+    const adminBackBtn=document.getElementById('adminBackToLobbyBtn'); 
+    const normalLeaveBtn=document.getElementById('leaveGameBtn'); 
+    const adminFinish=document.getElementById('adminFinishControls'); 
+    const adminControls=document.getElementById('adminGameControls'); 
+    
+    if(state.isAdmin){ 
+        adminBackBtn.style.display='flex'; 
+        normalLeaveBtn.style.display='none'; 
+        adminFinish.style.display='flex'; 
+        adminControls.style.display='flex'; 
+    }else{ 
+        adminBackBtn.style.display='none'; 
+        normalLeaveBtn.style.display='flex'; 
+        adminFinish.style.display='none'; 
+        adminControls.style.display='none'; 
+    } 
+    
+    // تأكد إن النصوص بتتكتب صح
+    document.getElementById('roundNum').textContent = state.round; 
+    document.getElementById('roundDesc').textContent = PHASE_RULES[state.round-1] || ""; 
+    
+    const active=state.players.filter(p=>p.status==='active'); 
+    const sorted=active.map(p=>({...p,scores:p.scores||[],total:(p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0)})).sort((a,b)=>a.total-b.total); 
+    const myIdx=sorted.findIndex(p=>p.uid===state.me); 
+    
+    if(myIdx!==-1) updateMyStatusCard(myIdx,sorted.length);
+    else {const c=document.getElementById('myStatusCard');if(c)c.style.display='none';} 
+    
+    const container=document.getElementById('cardsContainer'); 
+    if(!container)return; 
+    container.innerHTML=''; 
+    
+    sorted.forEach((p,idx)=>{ 
+        const animal=getAnimalRank(idx,sorted.length); 
+        const card=document.createElement('div'); 
+        let rankClass=''; 
+        if(animal.class==='rank-lion')rankClass='card-lion'; 
+        if(animal.class==='rank-sheep')rankClass='card-sheep'; 
+        if(animal.class==='rank-tiger')rankClass='card-tiger'; 
+        if(animal.class==='rank-goat')rankClass='card-goat'; 
+        card.className=`player-card ${rankClass} ${p.uid===state.me?'is-me':''}`; 
+        
+        const currentScore=(p.scores[state.round-1]!==null&&p.scores[state.round-1]!==undefined)?p.scores[state.round-1]:''; 
+        
+        card.innerHTML=`<div class="card-header" onclick="toggleCard(this)"><div class="p-main"><span class="p-avatar">${animal.icon||p.avatar}</span><span class="p-name">${p.name}</span></div><div class="p-score-box">${p.total}</div></div><div class="card-body ${p.uid===state.me?'open':''}">${(p.uid===state.me||state.isAdmin)?`<div class="input-area"><label class="input-label">سكور الجولة ${state.round}</label><input type="number" pattern="[0-9]*" class="big-score-input" value="${currentScore}" oninput="onScoreInput('${p.id}', ${state.round-1}, this.value)" placeholder="-"></div>`:`<div style="text-align:center; padding:10px; opacity:0.6;">${currentScore===''?'جاري اللعب...':`سكور الجولة: <b>${currentScore}</b>`}</div>`}<div class="history-row">${renderHistoryPills(p.scores)}</div>${state.isAdmin?`<button onclick="openSubModalById('${p.id}')" class="btn-text" style="font-size:11px">🔄 تبديل اللاعب</button>`:''}</div>`; 
+        container.appendChild(card); 
+    }); 
+}
+
 function renderHistoryPills(scores){let html='';for(let i=0;i<ROUNDS;i++){const val=(scores[i]!==null&&scores[i]!==undefined)?scores[i]:'-';const active=(i===state.round-1)?'active':'';html+=`<div class="hist-pill ${active}"><span>${i+1}</span>${val}</div>`;}return html;}
 window.toggleCard=function(header){header.nextElementSibling.classList.toggle('open');}
-let timers = new Map(); // Timer definition added here to be safe
+let timers = new Map();
 window.onScoreInput=function(pid,rIdx,val){const key=`${pid}-${rIdx}`;if(timers.has(key))clearTimeout(timers.get(key));timers.set(key,setTimeout(()=>saveScore(pid,rIdx,val),600));}
 async function saveScore(pid,rIdx,val){const num=(val===''||val==='-')?null:Number(val);const p=state.players.find(x=>x.id===pid);let s=p.scores?[...p.scores]:[];while(s.length<ROUNDS)s.push(null);s[rIdx]=num;await db.collection('rooms').doc(GAME_ID).collection('players').doc(pid).update({scores:s});}
-async function changeRound(d){const newR=Math.min(ROUNDS,Math.max(1,state.round+d));if(newR!==state.round)await db.collection('rooms').doc(GAME_ID).update({round:newR});}
 function getAnimalRank(i,t){if(i===0)return{icon:'🦁',class:'rank-lion'};if(t>=2&&i===t-1)return{icon:'🐑',class:'rank-sheep'};if(t>=3&&i===1)return{icon:'🐯',class:'rank-tiger'};if(t>=4&&i===t-2)return{icon:'🐐',class:'rank-goat'};return{icon:'',class:''};}
 function updateMyStatusCard(idx,total){const c=document.getElementById('myStatusCard');const m=document.getElementById('statusMsg');const e=document.getElementById('statusEmoji');const t=document.getElementById('statusTitle');let type='normal',icon='😐',lbl='عادي';if(total>0&&idx===0){type='lion';icon='🦁';lbl='الأسد';}else if(total>=2&&idx===total-1){type='sheep';icon='🐑';lbl='الخروف';}const txts=STATUS_MSGS[type]||STATUS_MSGS['normal'];m.textContent=txts[Math.floor(Math.random()*txts.length)];e.textContent=icon;t.textContent=lbl;c.style.display='flex';}
 function openFullTable(){const active=state.players.filter(p=>p.status==='active').sort((a,b)=>((a.scores||[]).reduce((x,y)=>x+(Number(y)||0),0)-(b.scores||[]).reduce((x,y)=>x+(Number(y)||0),0)));const thead=document.getElementById('tHead');thead.innerHTML='';['اللاعب','مجموع'].forEach(t=>{const th=document.createElement('th');th.textContent=t;thead.appendChild(th)});for(let i=1;i<=ROUNDS;i++){const th=document.createElement('th');th.textContent=i;if(i===state.round)th.className='active-col';thead.appendChild(th);}const tbody=document.getElementById('tBody');tbody.innerHTML='';active.forEach((p,idx)=>{const tr=document.createElement('tr');const tdName=document.createElement('td');tdName.textContent=p.name;tr.appendChild(tdName);const tdTotal=document.createElement('td');tdTotal.textContent=(p.scores||[]).reduce((a,b)=>a+(Number(b)||0),0);tr.appendChild(tdTotal);for(let r=0;r<ROUNDS;r++){const td=document.createElement('td');td.textContent=(p.scores[r]!==null&&p.scores[r]!==undefined)?p.scores[r]:'';tr.appendChild(td);}tbody.appendChild(tr);});document.getElementById('fullTableModal').style.display='flex';}
