@@ -75,3 +75,51 @@ th { background: #0f172a; position: sticky; top: 0; color: #aaa; }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); box-shadow: 0 0 10px var(--success); } 100% { transform: scale(1); } }
 .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; padding: 10px 20px; border-radius: 50px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 2000; font-weight: bold; }
 .toast.show { opacity: 1; top: 30px; }
+
+
+/* تصميم الشهادات */
+.cert-card {
+    background: #fff;
+    color: #333;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    border: 8px double #333;
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3Ccircle cx='13' cy='13' r='3'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ثيم الأسد */
+.cert-theme-lion {
+    border-color: #fbbf24;
+    background-color: #fffbeb;
+}
+.cert-theme-lion h2 { color: #d97706; text-transform: uppercase; letter-spacing: 1px; }
+
+/* ثيم الخروف */
+.cert-theme-sheep {
+    border-color: #10b981;
+    background-color: #ecfdf5;
+}
+.cert-theme-sheep h2 { color: #059669; }
+
+.cert-text {
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1.6;
+    margin: 20px 0;
+}
+.cert-witnesses {
+    border-top: 1px dashed #ccc;
+    padding-top: 10px;
+    font-size: 14px;
+}
+.cert-date {
+    margin-top: 20px;
+    font-size: 12px;
+    opacity: 0.6;
+    font-family: monospace;
+}
