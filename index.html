@@ -1,226 +1,116 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0f172a">
-  <title>Phase 10 — Ultimate</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phase 10 Ultimate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
-  <div class="background-animation"></div>
-
-  <div class="container">
-    
-    <div id="loginScreen" class="glass-panel centered-panel">
-        <div class="panel-header">
-            <h1>PHASE 10 👑</h1>
-            <p>سجل دخولك يا بطل</p>
-        </div>
-        <div class="input-stack">
-            <input id="loginEmail" type="email" placeholder="البريد الإلكتروني" dir="ltr">
-            <input id="loginPass" type="password" placeholder="كلمة المرور" dir="ltr">
-            <button id="doLoginBtn" class="btn-main">دخول 🚀</button>
-        </div>
-        <div class="panel-footer">
-            <span id="goToRegister">ليس لديك حساب؟ <b>انشئ حساب</b></span>
-        </div>
-    </div>
-
-    <div id="registerScreen" class="glass-panel centered-panel" style="display:none;">
-        <div class="panel-header">
-            <h1>حساب جديد 📝</h1>
-            <p>سجل عشان إحصائياتك تتحفظ!</p>
-        </div>
-        <div class="input-stack">
-            <input id="regName" placeholder="الاسم (اللقب)">
-            <div class="avatar-selector">
-                <label>اختر الأفاتار:</label>
-                <div id="avatarGrid" class="avatar-grid"></div>
-                <input type="hidden" id="selectedAvatar" value="👤">
-            </div>
-            <input id="regEmail" type="email" placeholder="البريد الإلكتروني" dir="ltr">
-            <input id="regPass" type="password" placeholder="كلمة المرور" dir="ltr">
-            <button id="doRegisterBtn" class="btn-success">تسجيل الحساب ✨</button>
-        </div>
-        <div class="panel-footer">
-            <span id="goToLogin">لديك حساب؟ <b>دخول</b></span>
-        </div>
-    </div>
-
-    <div id="lobbyScreen" class="screen-container" style="display:none;">
-        <div class="top-bar">
-            <div class="user-badge" id="openProfileBtn">
-                <span id="userAvatarDisplay">👤</span>
-                <span id="userNameDisplay">...</span>
-            </div>
-            <button id="logoutBtn" class="btn-icon">🚪</button>
-        </div>
-
-        <div class="lobby-header">
-            <h2 id="lobbyTitle">غرفة الانتظار 🛋️</h2>
-            <p id="lobbySubtitle">جاري التحميل...</p>
-        </div>
-
-        <div class="lobby-list-container">
-            <div id="onlinePlayersList" class="lobby-list"></div>
-        </div>
-
-        <div id="adminLobbyControls" class="floating-admin-actions" style="display:none;">
-            <div class="admin-actions-row">
-                <button id="resetGameBtn" class="btn-secondary">🔄 تصفير</button>
-                <button id="startGameBtn" class="btn-main flex-grow">⚽ ابدأ المباراة</button>
-            </div>
-            <div class="admin-actions-row" style="margin-top:5px;">
-                <button id="lobbyChangeAdminBtn" class="btn-glass flex-grow" style="color:var(--gold); border-color:var(--gold);">🔑 نقل الأدمن</button>
-                <button id="syncPlayersBtn" class="btn-info flex-grow">📥 استدعاء الكل</button>
-            </div>
-            <div class="admin-actions-row" style="margin-top:5px;">
-                <button id="factoryResetBtn" class="btn-danger-text flex-grow">☢️ مسح شامل (إصلاح)</button>
-            </div>
-        </div>
+    <div id="appContainer">
         
-        <div class="shared-footer-actions">
-             <button id="showFameBtn" class="btn-glass full-width" style="margin-top:10px;">🏆 ترتيب الدوري العام</button>
-        </div>
-        
-        <div id="playerWaitingMsg" style="text-align:center; margin-top:20px; display:none;">
-            <div class="loader-spinner">⏳</div>
-            <p id="waitingText">في انتظار بدء المباراة...</p>
+        <section id="authScreen" class="screen active">
+            <div class="glass-card center-box">
+                <h1 class="title">👑 Phase 10</h1>
+                
+                <div id="loginForm">
+                    <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" dir="ltr">
+                    <input type="password" id="loginPass" placeholder="كلمة المرور" dir="ltr">
+                    <button id="btnLogin" class="btn-primary">دخول</button>
+                    <p class="hint-text" onclick="toggleAuthMode('register')">ليس لديك حساب؟ <span>سجل جديد</span></p>
+                    <p class="hint-text danger" onclick="resetPassword()">نسيت كلمة المرور؟</p>
+                </div>
+
+                <div id="registerForm" style="display:none;">
+                    <input type="text" id="regName" placeholder="الاسم أو اللقب">
+                    <div class="avatar-scroll" id="avatarList"></div>
+                    <input type="hidden" id="selectedAvatar" value="🦁">
+                    <input type="email" id="regEmail" placeholder="البريد الإلكتروني" dir="ltr">
+                    <input type="password" id="regPass" placeholder="كلمة المرور" dir="ltr">
+                    <button id="btnRegister" class="btn-success">إنشاء حساب</button>
+                    <p class="hint-text" onclick="toggleAuthMode('login')">لديك حساب؟ <span>دخول</span></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="lobbyScreen" class="screen">
+            <header class="top-bar">
+                <div class="profile-badge">
+                    <span id="myAvatar">😎</span>
+                    <span id="myName">...</span>
+                </div>
+                <button id="btnLogout" class="btn-icon">🚪</button>
+            </header>
+
+            <div class="glass-card">
+                <h2 style="color:var(--gold)">غرفة الانتظار 🛋️</h2>
+                <div id="adminControls" class="admin-panel" style="display:none;">
+                    <h3>⚡ تحكم الأدمن</h3>
+                    <div class="btn-group">
+                        <button onclick="resetGameScores()" class="btn-danger-outline">🗑️ تصفير اللعبة (حفظ اللاعبين)</button>
+                        <button onclick="startGame()" class="btn-success">⚽ بدء / الذهاب للملعب</button>
+                    </div>
+                    <input type="text" id="searchPlayer" placeholder="🔍 ابحث عن لاعب..." onkeyup="filterLobby()">
+                </div>
+                
+                <div class="player-list-container">
+                    <div id="lobbyPlayersList" class="grid-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="gameScreen" class="screen">
+            <header class="game-header">
+                <div class="round-control">
+                    <button id="btnPrevRound" class="nav-btn" style="display:none;">❮</button>
+                    <div class="round-info">
+                        <span>الجولة</span>
+                        <span id="currentRoundDisplay">1</span>
+                    </div>
+                    <button id="btnNextRound" class="nav-btn" style="display:none;">❯</button>
+                </div>
+                <div class="header-actions">
+                    <button onclick="openTableModal()" class="btn-glass">📊 الجدول</button>
+                    <button onclick="goToLobby()" class="btn-glass warning">🏠 اللوبي</button>
+                </div>
+            </header>
+
+            <div id="roundPhaseDesc" class="phase-desc">-- المطلوب --</div>
+
+            <div id="gamePlayersContainer" class="cards-container"></div>
+
+        </section>
+
+    </div>
+
+    <div id="tableModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🏆 الترتيب الحالي</h3>
+                <button onclick="closeTableModal()" class="close-btn">✕</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="scoreTable">
+                    <thead>
+                        <tr>
+                            <th>اللاعب</th>
+                            <th>المجموع</th>
+                            </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div id="gameRoom" class="screen-container" style="display:none;">
-      <div class="game-header-card">
-          <div class="header-top">
-              <div class="round-badge">
-                  <span class="round-label">جولة</span>
-                  <span id="roundNum" class="round-value">1</span>
-              </div>
-              <div class="header-actions">
-                  <button id="viewFullTableBtn" class="btn-icon-glass">📊</button>
-                  <div style="position:relative;">
-                      <button id="adminBackToLobbyBtn" class="btn-icon-glass" style="display:none; background:rgba(251, 191, 36, 0.2); color:var(--gold);">🏠</button>
-                      <div id="adminNotificationDot" class="notification-dot" style="display:none;"></div>
-                  </div>
-                  <button id="waBtn" class="btn-icon-glass success-color">💬</button>
-                  <button id="leaveGameBtn" class="btn-icon-glass danger-color">✕</button>
-              </div>
-          </div>
-          <div class="round-description">
-              <span id="roundDesc">-- مطلوب --</span>
-          </div>
-          <div id="adminGameControls" class="admin-round-nav" style="display:none;">
-              <button id="prevRoundBtn" class="nav-arrow">❮</button>
-              <span style="font-size:12px; opacity:0.7">تغيير الجولة</span>
-              <button id="nextRoundBtn" class="nav-arrow">❯</button>
-          </div>
-      </div>
+    <div id="toast" class="toast"></div>
 
-      <div class="glass-panel" style="padding: 10px; margin-bottom: 15px;">
-        <div class="row-btns">
-          <button id="leaderBtn" class="btn-glass flex-grow">👑 الترتيب</button>
-          <button id="randomSkipBtn" class="btn-glass flex-grow">🎲 عشوائي</button>
-          <button id="smartSkipBtn" class="btn-purple flex-grow">🧠 ذكي</button>
-        </div>
-      </div>
-
-      <div id="myStatusCard" class="status-banner" style="display:none">
-          <div id="statusEmoji" class="status-icon">🦁</div>
-          <div class="status-text">
-              <h3 id="statusTitle">أنت المسيطر!</h3>
-              <p id="statusMsg">...</p>
-          </div>
-      </div>
-
-      <div id="cardsContainer" class="cards-list"></div>
-      
-      <div id="adminFinishControls" class="floating-bottom-actions" style="display:none;">
-          <div class="row-btns">
-            <button id="gameChangeAdminBtn" class="btn-glass" style="color:var(--gold); border-color:var(--gold);">🔑 الأدمن</button>
-            <button id="finishGameBtn" class="btn-danger flex-grow">💾 إنهاء المباراة وحفظ</button>
-          </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="fullTableModal" class="modal-overlay" style="display:none;">
-      <div class="modal-content table-modal">
-          <div class="modal-header">
-              <h3>📊 الجدول الكامل</h3>
-              <button id="closeFullTableBtn" class="close-icon">✕</button>
-          </div>
-          <div class="table-scroll"><table id="scoreTable"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table></div>
-      </div>
-  </div>
-
-  <div id="profileModal" class="modal-overlay" style="display:none;">
-      <div class="modal-content">
-          <h3>تعديل الملف</h3>
-          <div class="input-stack">
-              <input id="editName" placeholder="الاسم">
-              <div id="editAvatarGrid" class="avatar-grid small-grid"></div>
-              <input type="hidden" id="editSelectedAvatar">
-              <input id="editPass" type="password" placeholder="باسوورد جديد (اختياري)">
-              <button id="saveProfileChangesBtn" class="btn-success">حفظ</button>
-          </div>
-          <button id="closeProfileModalBtn" class="btn-text">إلغاء</button>
-      </div>
-  </div>
-
-  <div id="fameModal" class="modal-overlay" style="display:none; z-index:9999;">
-      <div class="modal-content table-modal">
-          <div class="modal-header">
-              <h3 style="color:var(--gold)">🏆 ترتيب الدوري العام</h3>
-              <button id="closeFameBtn" class="close-icon">✕</button>
-          </div>
-          <div id="fameList" class="fame-list"></div>
-      </div>
-  </div>
-
-  <div id="adminSelectModal" class="modal-overlay" style="display:none;">
-      <div class="modal-content">
-          <h3>تسليم القيادة 🔑</h3>
-          <div id="adminCandidatesList" class="list-selection"></div>
-          <button id="closeAdminModalBtn" class="btn-text">إلغاء</button>
-      </div>
-  </div>
-
-  <div id="subModal" class="modal-overlay" style="display:none;">
-      <div class="modal-content">
-          <h3>تبديل اللاعب 🔄</h3>
-          <h4 id="subTargetName" style="color:var(--gold)"></h4>
-          <div id="benchList" class="list-selection"></div>
-          <button id="closeSubModalBtn" class="btn-text">إلغاء</button>
-      </div>
-  </div>
-
-  <div id="skipModal" class="modal-overlay" style="display:none;">
-    <div class="modal-content text-center">
-      <div style="font-size:50px">🃏</div>
-      <h4 id="skipType"></h4>
-      <h2 id="skipTarget" style="color:var(--accent)"></h2>
-      <button id="closeModalBtn" class="btn-main full-width">تمام</button>
-    </div>
-  </div>
-
-  <div id="toast" class="toast"></div>
-
-  <audio id="skipAudio" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" preload="auto"></audio>
-  <audio id="lionAudio" src="https://www.myinstants.com/media/sounds/lion-roar.mp3" preload="auto"></audio>
-  <audio id="sheepAudio" src="https://www.myinstants.com/media/sounds/goat-scream.mp3" preload="auto"></audio>
-  <audio id="winAudio" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
