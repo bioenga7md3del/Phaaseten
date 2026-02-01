@@ -159,5 +159,28 @@
 
     <div id="toast" class="toast"></div>
     <script src="script.js"></script>
+<div id="certModal" class="modal center-modal" style="z-index: 3000;">
+        <div id="certCard" class="cert-card">
+            <div class="cert-header">
+                <span id="certIcon" style="font-size:50px;">🦁</span>
+                <h2 id="certTitle">شهادة الأسد</h2>
+            </div>
+            <div class="cert-body">
+                <p id="certText" class="cert-text"></p>
+                <div class="cert-witnesses">
+                    <span>على رقاب كل من:</span>
+                    <p id="certList" style="color:#aaa; font-size:12px; margin-top:5px;"></p>
+                </div>
+                <div class="cert-date" id="certDate"></div>
+            </div>
+            <div class="cert-footer">
+                <button id="nextCertBtn" class="btn-primary full-width">عرض شهادة الخروف 🐑</button>
+                <button id="closeCertBtn" onclick="closeCert()" class="btn-glass full-width" style="display:none; margin-top:10px;">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="script.js"></script>
 </body>
 </html>
