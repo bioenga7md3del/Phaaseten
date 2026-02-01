@@ -1,5 +1,5 @@
 // ==========================================
-// 1. الإعدادات والاتصال (Firebase Config)
+// 1. الإعدادات (Firebase)
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -10,20 +10,14 @@ const firebaseConfig = {
     appId: "1:780298483879:web:6b6627e673d4808e098382"
 };
 
-try { firebase.initializeApp(firebaseConfig); } catch (e) { console.error(e); }
-
+try { firebase.initializeApp(firebaseConfig); } catch (e) {}
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// إعدادات الاتصال المستقر
-db.settings({ 
-    experimentalForceLongPolling: true, 
-    experimentalAutoDetectLongPolling: false,
-    merge: true 
-});
+db.settings({ experimentalForceLongPolling: true, experimentalAutoDetectLongPolling: false, merge: true });
 
 // ==========================================
-// 2. المتغيرات العامة
+// 2. المتغيرات
 // ==========================================
 const GAME_DOC_ID = "game_session_v1";
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻"];
@@ -38,21 +32,16 @@ let usersCache = {};
 let gameData = { round: 1, players: {} };
 let listeners = [];
 let localSelection = new Set();
+let playerToSub = null; // عشان نخزن مين اللي هيتبدل
 
 // ==========================================
-// 3. البداية (Initialization)
+// 3. البداية
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     initAvatars();
-    
     auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            console.log("👤 مستخدم مسجل:", user.uid);
-            await loadUserData(user.uid);
-        } else {
-            console.log("👤 لا يوجد مستخدم");
-            showScreen('authScreen');
-        }
+        if (user) await loadUserData(user.uid);
+        else showScreen('authScreen');
     });
 
     const safeBind = (id, action) => { const el = document.getElementById(id); if(el) el.onclick = action; };
@@ -64,44 +53,31 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 4. إدارة المستخدمين
+// 4. المستخدمين
 // ==========================================
 async function loadUserData(uid) {
     try {
         const doc = await db.collection('users').doc(uid).get();
         if (doc.exists) {
             currentUser = { uid: uid, ...doc.data() };
-            const nameEl = document.getElementById('myName');
-            const avatarEl = document.getElementById('myAvatar');
-            
-            if(nameEl) nameEl.innerText = currentUser.name;
-            if(avatarEl) avatarEl.innerText = currentUser.avatar;
+            document.getElementById('myName').innerText = currentUser.name;
+            document.getElementById('myAvatar').innerText = currentUser.avatar;
             
             if (currentUser.isAdmin) {
-                const adminPanel = document.getElementById('adminControls');
-                if(adminPanel) adminPanel.style.display = 'block';
+                document.getElementById('adminControls').style.display = 'block';
                 document.getElementById('btnPrevRound').style.display = 'block';
                 document.getElementById('btnNextRound').style.display = 'block';
             }
-            // تشغيل الاستماع للداتا بيز
             setupRealtimeListeners();
-        } else {
-            // لو اليوزر مش موجود في الداتا بيز، نخرجه
-            auth.signOut();
-            location.reload();
-        }
-    } catch(e) {
-        console.error("Error loading user:", e);
-        toast("تأكد من الاتصال بالإنترنت 🌐");
-    }
+        } else { auth.signOut(); location.reload(); }
+    } catch(e) { console.error(e); }
 }
 
 async function login() {
     const email = document.getElementById('loginEmail').value;
     const pass = document.getElementById('loginPass').value;
     if(!email || !pass) return toast("بيانات ناقصة ❌");
-    try { await auth.signInWithEmailAndPassword(email, pass); } 
-    catch(e) { toast("خطأ في الدخول ❌"); }
+    try { await auth.signInWithEmailAndPassword(email, pass); } catch(e) { toast("خطأ دخول"); }
 }
 
 async function register() {
@@ -109,236 +85,157 @@ async function register() {
     const email = document.getElementById('regEmail').value;
     const pass = document.getElementById('regPass').value;
     const avatar = document.getElementById('selectedAvatar').value;
-    if(!name || !email || !pass) return toast("أكمل البيانات ❌");
-    
+    if(!name || !email || !pass) return toast("أكمل البيانات");
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
         await db.collection('users').doc(cred.user.uid).set({
-            name, avatar, email,
-            isAdmin: false,
+            name, avatar, email, isAdmin: false,
+            gamesPlayed: 0, lionCount: 0, sheepCount: 0, // عدادات التاريخ
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        toast("تم التسجيل بنجاح 🎉");
-    } catch(e) { toast("خطأ: " + e.message); }
+        toast("تم التسجيل");
+    } catch(e) { toast(e.message); }
 }
 
-async function logout() {
-    await auth.signOut();
-    location.reload();
-}
+async function logout() { await auth.signOut(); location.reload(); }
 
 // ==========================================
-// 5. الاستماع اللحظي (مع الإصلاح)
+// 5. الاستماع وتحديث الداتا
 // ==========================================
 function setupRealtimeListeners() {
-    // 1. استمع لكل المستخدمين
-    const unsubUsers = db.collection('users').onSnapshot(snap => {
+    // مراقب المستخدمين
+    listeners.push(db.collection('users').onSnapshot(snap => {
         snap.forEach(doc => usersCache[doc.id] = doc.data());
         if(document.getElementById('lobbyScreen').classList.contains('active')) renderLobby();
-    });
-    listeners.push(unsubUsers);
+    }));
 
-    // 2. استمع للعبة (وإنشائها لو مش موجودة)
+    // مراقب اللعبة (مع إنشاء المستند لو مش موجود)
     const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
-    
-    // تأكد إن الملف موجود الأول
-    gameRef.get().then((docSnapshot) => {
-        if (!docSnapshot.exists) {
-            // 🔥 الإصلاح: لو الملف مش موجود، اخلقه فاضي
-            gameRef.set({ round: 1, players: {} });
-        }
-    });
+    gameRef.get().then(doc => { if(!doc.exists) gameRef.set({ round: 1, players: {} }); });
 
-    const unsubGame = gameRef.onSnapshot(doc => {
+    listeners.push(gameRef.onSnapshot(doc => {
         if (doc.exists) {
             gameData = doc.data();
             updateGameUI();
             
-            // لو أنا لاعب مسجل في الجيم الحالي، ودخلت اللوبي، انقلني للجيم فوراً
-            if (gameData.players && gameData.players[currentUser.uid] && document.getElementById('lobbyScreen').classList.contains('active')) {
-                showScreen('gameScreen');
+            // نقل اللاعب للملعب تلقائياً لو تم إضافته
+            const amIInGame = gameData.players && gameData.players[currentUser.uid];
+            const isInLobby = document.getElementById('lobbyScreen').classList.contains('active');
+            
+            if (amIInGame && isInLobby) showScreen('gameScreen');
+            // لو تم طرده أو اللعبة خلصت يرجع اللوبي
+            if (!amIInGame && !isInLobby && document.getElementById('gameScreen').classList.contains('active')) {
+                toast("تم إخراجك أو انتهت المباراة");
+                showScreen('lobbyScreen');
             }
         } else {
-            // لو مفيش ملف لعبة، اعمل ريسيت محلي
             gameData = { round: 1, players: {} };
             showScreen('lobbyScreen');
         }
         renderLobby();
-    });
-    listeners.push(unsubGame);
+    }));
     
-    // التوجيه المبدئي
-    if(!document.getElementById('gameScreen').classList.contains('active')) {
-        showScreen('lobbyScreen');
-    }
+    if(!document.getElementById('gameScreen').classList.contains('active')) showScreen('lobbyScreen');
 }
 
 // ==========================================
-// 6. اللوبي ومنطق التحديد
+// 6. اللوبي (اختيار اللاعبين)
 // ==========================================
 function renderLobby() {
     const list = document.getElementById('lobbyPlayersList');
     if(!list) return;
-
-    const filter = (document.getElementById('searchPlayer')?.value || "").toLowerCase();
     
     let html = '';
     const activePlayers = gameData.players || {};
 
     Object.keys(usersCache).forEach(uid => {
         const u = usersCache[uid];
-        if (filter && !u.name.toLowerCase().includes(filter)) return;
-
         const isInGame = activePlayers[uid] !== undefined;
         const isSelected = localSelection.has(uid);
         
-        let rowClass = '';
-        let icon = '<div class="check-icon"></div>';
+        let rowClass = '', icon = '<div class="check-icon"></div>';
+        if (isInGame) { rowClass = 'already-in-game'; icon = '✅ بالملعب'; }
+        else if (isSelected) { rowClass = 'local-selected'; icon = '<div class="check-icon">✔</div>'; }
 
-        if (isInGame) {
-            rowClass = 'already-in-game';
-            icon = '✅ في الملعب';
-        } else if (isSelected) {
-            rowClass = 'local-selected';
-            icon = '<div class="check-icon">✔</div>';
-        }
+        // فقط الأدمن يختار، واللاعب اللي مش في الجيم
+        const action = (currentUser?.isAdmin && !isInGame) ? `onclick="toggleSelect('${uid}')"` : '';
 
-        // الأكشن عند الضغط
-        const clickAction = (currentUser && currentUser.isAdmin && !isInGame) ? `onclick="toggleLocalSelection('${uid}')"` : '';
-
-        html += `
-        <div class="player-row ${rowClass}" ${clickAction}>
+        html += `<div class="player-row ${rowClass}" ${action}>
             <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:24px">${u.avatar}</span>
-                <span style="font-weight:bold;">${u.name}</span>
+                <span style="font-size:24px">${u.avatar}</span><b>${u.name}</b>
             </div>
             <div>${icon}</div>
         </div>`;
     });
     list.innerHTML = html;
-    updateStartButton();
+    updateStartBtn();
 }
 
-window.toggleLocalSelection = function(uid) {
-    if (localSelection.has(uid)) {
-        localSelection.delete(uid);
-    } else {
-        localSelection.add(uid);
-    }
+window.toggleSelect = function(uid) {
+    if(localSelection.has(uid)) localSelection.delete(uid); else localSelection.add(uid);
     renderLobby();
 }
 
-function updateStartButton() {
+function updateStartBtn() {
     const btn = document.querySelector('#adminControls .btn-success');
     if(!btn) return;
-    
-    if (localSelection.size > 0) {
-        btn.innerHTML = `⚽ إدخال (${localSelection.size}) لاعب وبدء المباراة`;
-    } else {
-        btn.innerHTML = `⚽ الذهاب للملعب`;
-    }
+    btn.innerHTML = localSelection.size > 0 ? `⚽ إدخال (${localSelection.size}) وبدء` : `⚽ الذهاب للملعب`;
 }
 
-// 🔥🔥 إصلاح دالة البدء (undefined error) 🔥🔥
+// زر البدء (يدخل اللاعبين الجدد + يحسب الخروف)
 window.startGame = async function() {
-    // 1. لو مفيش حد مختار، روح الملعب بس
-    if (localSelection.size === 0) {
-        showScreen('gameScreen');
-        return;
-    }
+    if (localSelection.size === 0) { showScreen('gameScreen'); return; }
+    if(!confirm(`إدخال ${localSelection.size} لاعبين؟`)) return;
 
-    if(!confirm(`تأكيد إدخال ${localSelection.size} لاعبين؟`)) return;
-
-    // 2. تجهيز الداتا بشكل آمن
     const currentPlayers = gameData.players || {};
     let maxTotal = 0;
-    
     const pIds = Object.keys(currentPlayers);
     if (pIds.length > 0) {
-        // فلترة القيم الـ undefined والـ NaN
         maxTotal = Math.max(...pIds.map(id => calculateTotal(currentPlayers[id].scores || {})));
-        if (!isFinite(maxTotal)) maxTotal = 0; // أمان إضافي
+        if (!isFinite(maxTotal)) maxTotal = 0;
     }
 
-    // 3. بناء الـ Payload
-    const updatePayload = {};
-    
+    const updates = {};
     localSelection.forEach(uid => {
-        let initialScores = {};
-        // لو في سكور خروف (أكبر من صفر)، ضيف العقوبة في خانة penalty
-        if (maxTotal > 0) initialScores["penalty"] = maxTotal;
-        
-        // 🔥 المفتاح هنا: لازم نبعت Scores كـ Object حتى لو فاضي
-        updatePayload[`players.${uid}`] = { scores: initialScores };
+        let scores = {};
+        if (maxTotal > 0) scores["penalty"] = maxTotal; // عقوبة التأخير
+        updates[`players.${uid}`] = { scores: scores };
     });
 
     try {
-        // 🔥 استخدام set merge بدل update عشان لو الملف مش موجود يتخلق
-        await db.collection('game_session').doc(GAME_DOC_ID).set({
-            players: updatePayload // ده غلط في ال set، ال payload معمول لل update
-        }, { merge: true });
-        
-        // تصحيح: الـ Payload اللي فوق معمول بالـ Dot Notation وده ينفع مع update بس.
-        // عشان نستخدم set merge لازم نفك الـ Dot Notation أو نستخدم update بس نتأكد إن الملف موجود (واحنا اتأكدنا فوق).
-        
-        // الحل الأفضل والآمن: update
-        await db.collection('game_session').doc(GAME_DOC_ID).update(updatePayload);
-        
-        toast(`تم إضافة اللاعبين بنجاح 🎉`);
+        await db.collection('game_session').doc(GAME_DOC_ID).update(updates);
         localSelection.clear();
+        toast("تم!");
         showScreen('gameScreen');
     } catch(e) {
-        // لو فشل الـ update (مثلاً الملف اتمسح فجأة)، بنعمل set
-        console.warn("Update failed, trying set...", e);
-        
-        // تحويل الـ Dot Notation لـ Object عادي عشان الـ set
-        let playersObj = {};
-        localSelection.forEach(uid => {
-            let initialScores = {};
-            if (maxTotal > 0) initialScores["penalty"] = maxTotal;
-            playersObj[uid] = { scores: initialScores };
-        });
-
-        await db.collection('game_session').doc(GAME_DOC_ID).set({
-            players: playersObj
-        }, { merge: true });
-        
-        localSelection.clear();
+        // لو المستند مش موجود، أنشئه
+        let safePayload = {};
+        localSelection.forEach(uid => safePayload[uid] = { scores: maxTotal > 0 ? {penalty:maxTotal} : {} });
+        await db.collection('game_session').doc(GAME_DOC_ID).set({ players: safePayload }, { merge: true });
         showScreen('gameScreen');
     }
 }
 
-// 🔥🔥 إصلاح دالة إخراج اللاعب الفردي 🔥🔥
-window.togglePlayerInGame = async function(uid) {
-    if (!currentUser.isAdmin) return;
-
-    // دي عشان لو حبيت ترجع زرار الحذف الفردي من اللوبي (اختياري)
-    // حالياً التحديد الجماعي بيغني عنها
-}
-
 // ==========================================
-// 7. منطق المباراة (UI)
+// 7. الملعب والتحكم
 // ==========================================
 function updateGameUI() {
     const r = gameData.round || 1;
-    const roundDisp = document.getElementById('currentRoundDisplay');
-    const phaseDesc = document.getElementById('roundPhaseDesc');
-    
-    if(roundDisp) roundDisp.innerText = r;
-    if(phaseDesc) phaseDesc.innerText = PHASES[r-1] || "نهاية اللعبة";
+    document.getElementById('currentRoundDisplay').innerText = r;
+    document.getElementById('roundPhaseDesc').innerText = PHASES[r-1] || "نهاية";
 
     const container = document.getElementById('gamePlayersContainer');
-    if(!container) return;
-
     const playersObj = gameData.players || {};
     const pIds = Object.keys(playersObj);
 
+    // ترتيب اللاعبين
     const sorted = pIds.map(uid => {
         const scores = playersObj[uid].scores || {};
         const total = calculateTotal(scores);
-        const uInfo = usersCache[uid] || { name: '...', avatar: '👤' };
+        const uInfo = usersCache[uid]; 
+        if (!uInfo) return null; // 🔥 حل مشكلة الكروت الفاضية
         return { uid, ...uInfo, scores, total };
-    }).sort((a, b) => a.total - b.total);
+    }).filter(p => p !== null).sort((a, b) => a.total - b.total);
 
     let html = '';
     sorted.forEach((p, index) => {
@@ -348,133 +245,157 @@ function updateGameUI() {
             if (index === sorted.length - 1) { rankClass = 'rank-last'; badge = '<span class="badge">🐑</span>'; }
         }
 
-        const isMe = currentUser && p.uid === currentUser.uid;
-        const isAdmin = currentUser && currentUser.isAdmin;
-        const canEdit = isMe || isAdmin;
+        const canEdit = (currentUser?.uid === p.uid) || currentUser?.isAdmin;
+        const val = (p.scores && p.scores[r] !== undefined) ? p.scores[r] : '';
         
-        const currentVal = (p.scores && p.scores[r] !== undefined) ? p.scores[r] : '';
+        let inputHtml = canEdit ? 
+            `<input type="number" class="score-input" value="${val}" onchange="saveScore('${p.uid}', ${r}, this.value)" placeholder="-">` : 
+            `<div class="score-display">${val === '' ? '-' : val}</div>`;
 
-        let inputField = '';
-        if (canEdit) {
-            inputField = `<input type="number" class="score-input" value="${currentVal}" 
-                onchange="saveScore('${p.uid}', ${r}, this.value)" placeholder="-">`;
-        } else {
-            inputField = `<div class="score-display">${currentVal === '' ? '-' : currentVal}</div>`;
-        }
+        // زرار التبديل للأدمن
+        let subBtn = currentUser?.isAdmin ? `<button onclick="openSubModal('${p.uid}')" class="btn-glass" style="font-size:10px; padding:5px;">🔄</button>` : '';
 
         html += `
-        <div class="game-card ${isMe ? 'is-me' : ''} ${rankClass}">
+        <div class="game-card ${currentUser?.uid === p.uid ? 'is-me' : ''} ${rankClass}">
             ${badge}
             <div class="card-info">
                 <div class="card-avatar">${p.avatar}</div>
                 <div>
-                    <div class="card-name">${p.name}</div>
-                    <div class="card-total">المجموع: <b>${p.total}</b></div>
+                    <div class="card-name">${p.name} ${subBtn}</div>
+                    <div class="card-total">T: <b>${p.total}</b></div>
                 </div>
             </div>
-            <div>${inputField}</div>
+            <div>${inputHtml}</div>
         </div>`;
     });
-
     container.innerHTML = html;
-    
-    if(document.getElementById('tableModal').style.display === 'flex') {
-        renderFullTable(sorted, r);
-    }
+    if(document.getElementById('tableModal').style.display === 'flex') renderFullTable(sorted, r);
 }
 
-// دالة حفظ السكور الآمنة
 window.saveScore = async function(uid, round, val) {
-    const updateKey = `players.${uid}.scores.${round}`;
-    let valueToSave = Number(val);
-    
-    // التحقق من وجود الملف قبل الكتابة
-    const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
-    
-    if (val === '') {
-        await gameRef.update({ [updateKey]: firebase.firestore.FieldValue.delete() })
-            .catch(e => console.warn("Score delete error (maybe doc missing)", e));
-    } else {
-        await gameRef.update({ [updateKey]: valueToSave })
-            .catch(async (e) => {
-                // لو فشل الـ update، جرب set merge (حالة نادرة جداً)
-                let payload = {};
-                payload[uid] = { scores: {} };
-                payload[uid].scores[round] = valueToSave;
-                await gameRef.set({ players: payload }, { merge: true });
-            });
-    }
+    const key = `players.${uid}.scores.${round}`;
+    const op = val === '' ? firebase.firestore.FieldValue.delete() : Number(val);
+    await db.collection('game_session').doc(GAME_DOC_ID).update({ [key]: op });
 }
 
-// 🔥🔥 إصلاح دالة تغيير الجولة 🔥🔥
-window.changeRound = async function(delta) {
+window.changeRound = async function(d) {
     if (!currentUser.isAdmin) return;
-    const current = gameData.round || 1;
-    const next = Math.max(1, Math.min(10, current + delta));
+    const next = Math.max(1, Math.min(10, (gameData.round || 1) + d));
+    await db.collection('game_session').doc(GAME_DOC_ID).update({ round: next });
+}
+
+// ==========================================
+// 8. الميزات الجديدة (الخروج، التبديل، الحفظ)
+// ==========================================
+
+// خروج اللاعب بنفسه
+window.leaveGameCompletely = async function() {
+    if(!confirm("هل أنت متأكد من الخروج النهائي من المباراة؟")) return;
+    const key = `players.${currentUser.uid}`;
+    await db.collection('game_session').doc(GAME_DOC_ID).update({
+        [key]: firebase.firestore.FieldValue.delete()
+    });
+    showScreen('lobbyScreen');
+}
+
+// إنهاء وحفظ (Hall of Fame) 🔥
+window.finishGameAndArchive = async function() {
+    if(!confirm("⚠️ هل أنت متأكد من إنهاء اللعبة وحفظ النتائج في التاريخ؟")) return;
     
-    if (next !== current) {
-        const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
-        // نستخدم set merge للأمان، لو الملف مش موجود يخلقه
-        await gameRef.set({ round: next }, { merge: true })
-            .catch(e => toast("فشل تغيير الجولة ❌"));
-    }
-}
+    const playersObj = gameData.players || {};
+    const pIds = Object.keys(playersObj);
+    if(pIds.length < 2) return toast("عدد اللاعبين قليل!");
 
-function calculateTotal(scores) {
-    if (!scores) return 0;
-    // التأكد من إن القيم أرقام
-    return Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
-}
+    // حساب الترتيب
+    const sorted = pIds.map(uid => ({
+        uid, total: calculateTotal(playersObj[uid].scores || {})
+    })).sort((a, b) => a.total - b.total);
 
-// ==========================================
-// 8. المساعدات (Utils)
-// ==========================================
-window.resetGameScores = async function() {
-    if(!confirm("⚠️ تحذير: سيتم مسح جميع النقاط والبدء من الصفر!")) return;
-    // هنا بنستخدم set عشان نمسح أي بيانات قديمة ونبدأ على نضافة
-    await db.collection('game_session').doc(GAME_DOC_ID).set({
-        round: 1,
-        players: {} 
+    const winner = sorted[0]; // الأسد (أقل سكور)
+    const loser = sorted[sorted.length - 1]; // الخروف (أعلى سكور)
+
+    const batch = db.batch();
+
+    // تحديث إحصائيات كل لاعب
+    pIds.forEach(uid => {
+        const ref = db.collection('users').doc(uid);
+        batch.update(ref, { 
+            gamesPlayed: firebase.firestore.FieldValue.increment(1) 
+        });
+        
+        if (uid === winner.uid) {
+            batch.update(ref, { lionCount: firebase.firestore.FieldValue.increment(1) });
+        }
+        if (uid === loser.uid) {
+            batch.update(ref, { sheepCount: firebase.firestore.FieldValue.increment(1) });
+        }
     });
+
+    // تصفير اللعبة
+    batch.set(db.collection('game_session').doc(GAME_DOC_ID), { round: 1, players: {} });
+
+    await batch.commit();
+    toast("🏆 تم حفظ الألقاب وتصفير اللعبة!");
     localSelection.clear();
-    toast("تم تصفير اللعبة 🗑️");
 }
 
-window.openTableModal = function() { document.getElementById('tableModal').style.display = 'flex'; updateGameUI(); }
-window.closeTableModal = function() { document.getElementById('tableModal').style.display = 'none'; }
-window.goToLobby = function() { showScreen('lobbyScreen'); }
-window.filterLobby = function() { renderLobby(); }
+// التبديل (Substitution)
+window.openSubModal = function(uidOut) {
+    playerToSub = uidOut;
+    const list = document.getElementById('subCandidatesList');
+    let html = '';
+    const activePlayers = gameData.players || {};
+    
+    // هات الناس اللي مش بتلعب بس
+    Object.keys(usersCache).forEach(uid => {
+        if (!activePlayers[uid]) {
+            const u = usersCache[uid];
+            html += `<div class="player-row" onclick="performSub('${uid}')">
+                <span>${u.avatar} ${u.name}</span>
+            </div>`;
+        }
+    });
+    
+    if (html === '') html = '<p style="text-align:center">لا يوجد بدلاء</p>';
+    list.innerHTML = html;
+    document.getElementById('subModal').style.display = 'flex';
+}
 
+window.performSub = async function(uidIn) {
+    if(!confirm("تبديل اللاعبين ونقل السكور؟")) return;
+    
+    const currentScores = gameData.players[playerToSub].scores;
+    const batch = db.batch();
+    const ref = db.collection('game_session').doc(GAME_DOC_ID);
+    
+    // مسح القديم واضافة الجديد بنفس السكور
+    // ملاحظة: في Firestore Update لازم نستخدم Dot Notation للحذف والإضافة
+    // للأمان هنعملها قراءة وتحديث كامل للـ map
+    
+    const newPlayers = { ...gameData.players };
+    delete newPlayers[playerToSub];
+    newPlayers[uidIn] = { scores: currentScores };
+    
+    await ref.update({ players: newPlayers });
+    
+    document.getElementById('subModal').style.display = 'none';
+    toast("تم التبديل 🔄");
+}
+
+// ==========================================
+// 9. المساعدات
+// ==========================================
+function calculateTotal(s) { return Object.values(s).reduce((a,b)=>a+(Number(b)||0),0); }
+window.goToLobby = () => showScreen('lobbyScreen');
+window.openTableModal = () => { document.getElementById('tableModal').style.display='flex'; updateGameUI(); };
+window.closeTableModal = () => document.getElementById('tableModal').style.display='none';
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function toast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+window.toggleAuthMode = (m) => { document.getElementById('loginForm').style.display=m==='login'?'block':'none'; document.getElementById('registerForm').style.display=m==='register'?'block':'none'; };
+function initAvatars(){ const c=document.getElementById('avatarList'); if(c) AVATARS.forEach((a,i)=>{const s=document.createElement('span');s.className=`av-item ${i===0?'selected':''}`;s.innerText=a;s.onclick=()=>{document.querySelectorAll('.av-item').forEach(x=>x.classList.remove('selected'));s.classList.add('selected');document.getElementById('selectedAvatar').value=a;};c.appendChild(s);}); }
 function renderFullTable(sorted, r) {
-    const thead = document.querySelector('#scoreTable thead tr');
-    const tbody = document.getElementById('tableBody');
-    let head = '<th>اللاعب</th><th>T</th>'; 
-    for(let i=1; i<=10; i++) head += `<th ${i===r?'style="color:#fbbf24"':''}>${i}</th>`;
-    thead.innerHTML = head;
-    let body = ''; 
-    sorted.forEach(p => {
-        let row = `<td>${p.name}</td><td><b>${p.total}</b></td>`;
-        for(let i=1; i<=10; i++) row += `<td>${p.scores[i]!==undefined?p.scores[i]:''}</td>`;
-        body += `<tr>${row}</tr>`;
-    });
-    tbody.innerHTML = body;
+    let h='<th>اللاعب</th><th>T</th>'; for(let i=1;i<=10;i++) h+=`<th ${i===r?'style="color:var(--gold)"':''}>${i}</th>`;
+    document.querySelector('#scoreTable thead tr').innerHTML=h;
+    let b=''; sorted.forEach(p=>{ let row=`<td>${p.name}</td><td><b>${p.total}</b></td>`; for(let i=1;i<=10;i++) row+=`<td>${p.scores[i]!==undefined?p.scores[i]:''}</td>`; b+=`<tr>${row}</tr>`; });
+    document.getElementById('tableBody').innerHTML=b;
 }
-
-function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-}
-window.toggleAuthMode = function(mode) {
-    document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
-    document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
-}
-function initAvatars() {
-    const c = document.getElementById('avatarList'); if(!c) return;
-    AVATARS.forEach((av, idx) => {
-        const s = document.createElement('span'); s.className = `av-item ${idx===0?'selected':''}`; s.innerText=av;
-        s.onclick=()=>{document.querySelectorAll('.av-item').forEach(x=>x.classList.remove('selected'));s.classList.add('selected');document.getElementById('selectedAvatar').value=av;};
-        c.appendChild(s);
-    });
-}
-function toast(msg) { const t=document.getElementById('toast'); t.innerText=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
-window.resetPassword = function() { const e=prompt("البريد الإلكتروني:"); if(e) auth.sendPasswordResetEmail(e).then(()=>alert("تم")).catch(x=>alert(x.message)); }
