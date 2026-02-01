@@ -18,17 +18,14 @@
         <section id="authScreen" class="screen active">
             <div class="glass-card center-box">
                 <h1 class="title">👑 Phase 10</h1>
-                
                 <div id="loginForm">
                     <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" dir="ltr">
                     <input type="password" id="loginPass" placeholder="كلمة المرور" dir="ltr">
                     <button id="btnLogin" class="btn-primary">دخول</button>
                     <p class="hint-text" onclick="toggleAuthMode('register')">ليس لديك حساب؟ <span>سجل جديد</span></p>
-                    <p class="hint-text danger" onclick="resetPassword()">نسيت كلمة المرور؟</p>
                 </div>
-
                 <div id="registerForm" style="display:none;">
-                    <input type="text" id="regName" placeholder="الاسم أو اللقب">
+                    <input type="text" id="regName" placeholder="الاسم (اللقب)">
                     <div class="avatar-scroll" id="avatarList"></div>
                     <input type="hidden" id="selectedAvatar" value="🦁">
                     <input type="email" id="regEmail" placeholder="البريد الإلكتروني" dir="ltr">
@@ -41,22 +38,20 @@
 
         <section id="lobbyScreen" class="screen">
             <header class="top-bar">
-                <div class="profile-badge">
-                    <span id="myAvatar">😎</span>
-                    <span id="myName">...</span>
-                </div>
+                <div class="profile-badge"><span id="myAvatar">😎</span> <span id="myName">...</span></div>
                 <button id="btnLogout" class="btn-icon">🚪</button>
             </header>
 
             <div class="glass-card">
                 <h2 style="color:var(--gold)">غرفة الانتظار 🛋️</h2>
+                
                 <div id="adminControls" class="admin-panel" style="display:none;">
-                    <h3>⚡ تحكم الأدمن</h3>
+                    <h3>⚡ تحكم المدير</h3>
                     <div class="btn-group">
-                        <button onclick="resetGameScores()" class="btn-danger-outline">🗑️ تصفير اللعبة (حفظ اللاعبين)</button>
-                        <button onclick="startGame()" class="btn-success">⚽ بدء / الذهاب للملعب</button>
+                        <button onclick="startGame()" class="btn-success">⚽ بدء المباراة / دخول</button>
+                        <button onclick="finishGameAndArchive()" class="btn-danger-outline">🏆 إنهاء وحفظ التاريخ</button>
                     </div>
-                    <input type="text" id="searchPlayer" placeholder="🔍 ابحث عن لاعب..." onkeyup="filterLobby()">
+                    <p style="font-size:12px; color:#aaa; margin-top:5px">حدد اللاعبين من القائمة بالأسفل ثم اضغط بدء</p>
                 </div>
                 
                 <div class="player-list-container">
@@ -69,48 +64,42 @@
             <header class="game-header">
                 <div class="round-control">
                     <button id="btnPrevRound" class="nav-btn" style="display:none;">❮</button>
-                    <div class="round-info">
-                        <span>الجولة</span>
-                        <span id="currentRoundDisplay">1</span>
-                    </div>
+                    <div class="round-info"><span>الجولة</span><span id="currentRoundDisplay">1</span></div>
                     <button id="btnNextRound" class="nav-btn" style="display:none;">❯</button>
                 </div>
                 <div class="header-actions">
-                    <button onclick="openTableModal()" class="btn-glass">📊 الجدول</button>
                     <button onclick="goToLobby()" class="btn-glass warning">🏠 اللوبي</button>
+                    <button onclick="leaveGameCompletely()" class="btn-glass danger">🏃‍♂️ خروج نهائي</button>
                 </div>
             </header>
 
+            <div class="glass-panel" style="margin-bottom:15px; display:flex; gap:10px;">
+                <button onclick="openTableModal()" class="btn-glass" style="flex:1">📊 الجدول الكامل</button>
+            </div>
+
             <div id="roundPhaseDesc" class="phase-desc">-- المطلوب --</div>
-
             <div id="gamePlayersContainer" class="cards-container"></div>
-
         </section>
 
     </div>
 
     <div id="tableModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3>🏆 الترتيب الحالي</h3>
-                <button onclick="closeTableModal()" class="close-btn">✕</button>
-            </div>
-            <div class="table-wrapper">
-                <table id="scoreTable">
-                    <thead>
-                        <tr>
-                            <th>اللاعب</th>
-                            <th>المجموع</th>
-                            </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                </table>
-            </div>
+            <div class="modal-header"><h3>🏆 الترتيب</h3><button onclick="closeTableModal()" class="close-btn">✕</button></div>
+            <div class="table-wrapper"><table id="scoreTable"><thead><tr></tr></thead><tbody id="tableBody"></tbody></table></div>
+        </div>
+    </div>
+
+    <div id="subModal" class="modal">
+        <div class="modal-content center-box" style="margin:0;">
+            <h3>🔄 تبديل لاعب</h3>
+            <p>اختر اللاعب البديل من اللوبي:</p>
+            <div id="subCandidatesList" class="grid-list" style="max-height:200px;"></div>
+            <button onclick="document.getElementById('subModal').style.display='none'" class="btn-glass">إلغاء</button>
         </div>
     </div>
 
     <div id="toast" class="toast"></div>
-
     <script src="script.js"></script>
 </body>
 </html>
