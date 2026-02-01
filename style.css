@@ -117,3 +117,31 @@ th { background: #0f172a; position: sticky; top: 0; }
 .hint-text span { color: var(--primary); font-weight: bold; }
 .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; padding: 10px 20px; border-radius: 50px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 2000; }
 .toast.show { opacity: 1; top: 30px; }
+
+/* تنسيق التحديد المحلي (قبل البدء) */
+.player-row {
+    cursor: pointer;
+    transition: 0.2s;
+    border: 2px solid transparent;
+}
+.player-row.local-selected {
+    background: rgba(99, 102, 241, 0.2); /* لون بنفسجي خفيف */
+    border-color: var(--primary);
+    transform: scale(1.02);
+}
+/* علامة الصح */
+.check-icon {
+    width: 25px; height: 25px; border-radius: 50%;
+    border: 2px solid #555; display: flex; align-items: center; justify-content: center;
+    color: transparent; transition: 0.2s;
+}
+.local-selected .check-icon {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+.already-in-game {
+    opacity: 0.5;
+    pointer-events: none; /* عشان متختروش تاني وهو جوه */
+    border-color: var(--success);
+}
