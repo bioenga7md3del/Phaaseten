@@ -1,5 +1,5 @@
 // ==========================================
-// 1. إعدادات Firebase والاتصال
+// 1. الإعدادات والاتصال
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyC5Dh7bJzPqLaZl4djKCgpzaHHSeeD1aHU",
@@ -15,7 +15,6 @@ try { firebase.initializeApp(firebaseConfig); } catch (e) { console.error(e); }
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// إعدادات الثبات (لمنع التقطيع)
 db.settings({ 
     experimentalForceLongPolling: true, 
     experimentalAutoDetectLongPolling: false, 
@@ -23,7 +22,7 @@ db.settings({
 });
 
 // ==========================================
-// 2. المتغيرات العامة والثوابت
+// 2. المتغيرات
 // ==========================================
 const GAME_DOC_ID = "game_session_v1";
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻"];
@@ -33,7 +32,6 @@ const PHASES = [
     "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
 ];
 
-// كومنتات مضحكة للألقاب
 const FUNNY_COMMENTS = {
     lion: ["بابا المجال وصل 🦁", "ولا كلمة يا خروف 🤫", "القمة بتاعتي لوحدي", "وسع للكبير"],
     tiger: ["هجيبك يا أسد 🐅", "الوصيف الذهبي", "قربت أوي", "يا مسهل"],
@@ -45,32 +43,25 @@ const SKIP_COMMENTS = ["لبس السكيب 😂", "حظه وحش أوي 🌚", 
 
 let currentUser = null;
 let usersCache = {};
-let gameData = { round: 1, players: {} };
+let gameData = { round: 1, players: {}, state: 'active' }; // ضفنا state عشان نعرف اللعبة خلصت ولا لأ
 let listeners = [];
 let localSelection = new Set();
 let playerToSub = null;
-let finalResults = null; // لتخزين بيانات الشهادة
-
-// ذاكرة عشان الأصوات متشتغلش عمال على بطال
 let prevRanks = { lion: null, sheep: null };
+// متغير محلي لتخزين النتائج للعرض
+let localFinalResults = null;
 
 // ==========================================
-// 3. البداية (Initialization)
+// 3. البداية
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     initAvatars();
-    
     auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            await loadUserData(user.uid);
-        } else {
-            showScreen('authScreen');
-        }
+        if (user) await loadUserData(user.uid);
+        else showScreen('authScreen');
     });
 
-    // ربط الأزرار بالأحداث
     const click = (id, func) => { const el = document.getElementById(id); if(el) el.onclick = func; };
-    
     click('btnLogin', login);
     click('btnRegister', register);
     click('btnLogout', logout);
@@ -79,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 4. إدارة المستخدمين (Auth)
+// 4. المستخدمين
 // ==========================================
 async function loadUserData(uid) {
     try {
@@ -89,7 +80,6 @@ async function loadUserData(uid) {
             document.getElementById('myName').innerText = currentUser.name;
             document.getElementById('myAvatar').innerText = currentUser.avatar;
             
-            // لوحة الأدمن
             if (currentUser.isAdmin) {
                 document.getElementById('adminSettingsBtn').style.display = 'block';
                 document.getElementById('adminEndGamePanel').style.display = 'block';
@@ -102,10 +92,7 @@ async function loadUserData(uid) {
                 document.getElementById('adminQuickControls').style.display = 'none';
             }
             setupRealtimeListeners();
-        } else {
-            auth.signOut(); 
-            location.reload();
-        }
+        } else { auth.signOut(); location.reload(); }
     } catch(e) { console.error(e); }
 }
 
@@ -129,11 +116,10 @@ async function register() {
             gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        toast("تم التسجيل بنجاح");
+        toast("تم التسجيل");
     } catch(e) { toast(e.message); }
 }
 
-// تعديل البروفايل الشخصي
 window.editMyProfile = async function() {
     const newName = prompt("أدخل اسمك الجديد:", currentUser.name);
     if(newName && newName.trim() !== "") {
@@ -146,35 +132,45 @@ window.editMyProfile = async function() {
 async function logout() { await auth.signOut(); location.reload(); }
 
 // ==========================================
-// 5. الاستماع اللحظي (Listeners)
+// 5. الاستماع اللحظي (المعدل للمزامنة) 🔥
 // ==========================================
 function setupRealtimeListeners() {
-    // 1. مراقب المستخدمين
     listeners.push(db.collection('users').onSnapshot(snap => {
         snap.forEach(doc => usersCache[doc.id] = doc.data());
         if(document.getElementById('lobbyScreen').classList.contains('active')) renderLobby();
         if(document.getElementById('managePlayersModal').style.display==='block') openManagePlayers();
     }));
 
-    // 2. مراقب اللعبة
     const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
-    gameRef.get().then(doc => { if(!doc.exists) gameRef.set({ round: 1, players: {} }); });
+    gameRef.get().then(doc => { if(!doc.exists) gameRef.set({ round: 1, players: {}, state: 'active' }); });
 
     listeners.push(gameRef.onSnapshot(doc => {
         if (doc.exists) {
             gameData = doc.data();
+            
+            // 1. تحديث واجهة اللعبة
             updateGameUI();
             
-            // زرار العودة للمباراة
+            // 2. فحص حالة "الاحتفال" (الشهادات)
+            // لو الحالة 'finished' والشهادات مش معروضة، اعرضها
+            if (gameData.state === 'finished' && gameData.finalResults) {
+                // حفظ النتائج محلياً عشان العرض
+                localFinalResults = gameData.finalResults;
+                
+                // لو المودال مش مفتوح، افتحه
+                if(document.getElementById('certModal').style.display !== 'flex') {
+                    showCertificate('lion'); // ابدأ بعرض الأسد للكل
+                }
+            } else if (gameData.state === 'active') {
+                // لو الحالة رجعت active، اقفل الشهادات فوراً
+                document.getElementById('certModal').style.display = 'none';
+            }
+
+            // 3. زرار العودة
             const amInGame = gameData.players && gameData.players[currentUser.uid];
             const returnBtn = document.getElementById('returnToGamePanel');
             if (amInGame) returnBtn.style.display = 'block';
             else returnBtn.style.display = 'none';
-
-            // لو أنا لسه فاتح ولقيت نفسي في الجيم (أول مرة)
-            if (amInGame && document.getElementById('lobbyScreen').classList.contains('active') && !localSelection.has(currentUser.uid)) {
-               // لا نجبره على الدخول، نترك له الخيار عبر الزر
-            }
         }
         renderLobby();
     }));
@@ -183,7 +179,7 @@ function setupRealtimeListeners() {
 }
 
 // ==========================================
-// 6. اللوبي ومنطق الدخول
+// 6. اللوبي
 // ==========================================
 function renderLobby() {
     const list = document.getElementById('lobbyPlayersList');
@@ -198,15 +194,9 @@ function renderLobby() {
         const isSelected = localSelection.has(uid);
         
         let rowClass = '', icon = '';
-        if (isInGame) { 
-            rowClass = 'already-in-game'; 
-            icon = '<span style="color:var(--success); font-size:12px;">بالملعب</span>'; 
-        } else if (isSelected) { 
-            rowClass = 'local-selected'; 
-            icon = '<div class="check-icon">✔</div>'; 
-        } else { 
-            icon = '<div class="check-icon"></div>'; 
-        }
+        if (isInGame) { rowClass = 'already-in-game'; icon = '<span style="color:var(--success)">بالملعب</span>'; }
+        else if (isSelected) { rowClass = 'local-selected'; icon = '<div class="check-icon">✔</div>'; }
+        else { icon = '<div class="check-icon"></div>'; }
 
         const action = (currentUser?.isAdmin && !isInGame) ? `onclick="toggleSelect('${uid}')"` : '';
 
@@ -220,7 +210,6 @@ function renderLobby() {
     });
     list.innerHTML = html;
     
-    // تحديث زرار البدء
     const btn = document.getElementById('mainGameBtn');
     if(localSelection.size > 0) btn.innerHTML = `⚽ إدخال (${localSelection.size}) لاعب`;
     else btn.innerHTML = "⚽ بدء المباراة";
@@ -237,7 +226,6 @@ window.handleGameBtn = async function() {
         const currentPlayers = gameData.players || {};
         let maxTotal = 0;
         const pIds = Object.keys(currentPlayers);
-        // حساب سكور الخروف
         if (pIds.length > 0) {
             maxTotal = Math.max(...pIds.map(id => calculateTotal(currentPlayers[id].scores || {})));
             if(!isFinite(maxTotal)) maxTotal = 0;
@@ -262,7 +250,7 @@ window.handleGameBtn = async function() {
 }
 
 // ==========================================
-// 7. الملعب - الأصوات - الألقاب
+// 7. الملعب
 // ==========================================
 function updateGameUI() {
     const r = gameData.round || 1;
@@ -275,7 +263,6 @@ function updateGameUI() {
     const playersObj = gameData.players || {};
     const pIds = Object.keys(playersObj);
 
-    // الترتيب: الأقل سكور هو الأفضل
     const sorted = pIds.map(uid => {
         const scores = playersObj[uid].scores || {};
         const total = calculateTotal(scores);
@@ -284,29 +271,19 @@ function updateGameUI() {
         return { uid, ...uInfo, scores, total };
     }).filter(p => p !== null).sort((a, b) => a.total - b.total);
 
-    // 🔥🔥 منطق الأصوات الذكي (لكل لاعب لوحده) 🔥🔥
+    // منطق الأصوات (محلي)
     if (sorted.length >= 2) {
         const currentLion = sorted[0].uid;
         const currentSheep = sorted[sorted.length-1].uid;
 
-        // فحص الأسد
         if (prevRanks.lion && prevRanks.lion !== currentLion) {
             toast(`🦁 الأسد الجديد: ${usersCache[currentLion].name}`);
-            if (currentUser.uid === currentLion) {
-                playSound('soundLion');
-                toast("أنت الأسد! 🦁🔥");
-            }
+            if (currentUser.uid === currentLion) { playSound('soundLion'); toast("أنت الأسد! 🦁"); }
         }
-
-        // فحص الخروف
         if (prevRanks.sheep && prevRanks.sheep !== currentSheep) {
             toast(`🐑 الخروف الجديد: ${usersCache[currentSheep].name}`);
-            if (currentUser.uid === currentSheep) {
-                playSound('soundSheep');
-                toast("أنت الخروف! 🐑😂");
-            }
+            if (currentUser.uid === currentSheep) { playSound('soundSheep'); toast("أنت الخروف! 🐑"); }
         }
-
         prevRanks.lion = currentLion;
         prevRanks.sheep = currentSheep;
     }
@@ -364,12 +341,8 @@ function updateGameUI() {
 
 function playSound(id) {
     const audio = document.getElementById(id);
-    if(audio) { 
-        audio.currentTime = 0; 
-        audio.play().catch(e => console.log("User interaction needed for audio")); 
-    }
+    if(audio) { audio.currentTime = 0; audio.play().catch(e => {}); }
 }
-
 function getRandomComment(type) {
     const list = FUNNY_COMMENTS[type] || FUNNY_COMMENTS['normal'];
     return list[Math.floor(Math.random() * list.length)];
@@ -388,33 +361,25 @@ window.randomSkip = function() {
     document.getElementById('skipTargetName').innerText = victimName;
     document.getElementById('skipComment').innerText = comment;
     document.getElementById('skipModal').style.display = 'flex';
-    
-    playSound('soundSkip'); // صوت السكيب للكل عشان الضحك
+    playSound('soundSkip');
 }
 
 // ==========================================
-// 8. إعدادات الأدمن والمودالات
+// 8. إعدادات الأدمن
 // ==========================================
 window.openAdminModal = () => document.getElementById('adminModal').style.display = 'block';
 
-// تصفير المصنع الشامل
 window.resetGameCompletely = async function() {
     if(!confirm("⚠️ تحذير نهائي: مسح اللعبة الحالية + مسح تاريخ لوحة الشرف للجميع!\nهل أنت متأكد؟")) return;
-    
     const batch = db.batch();
-    batch.set(db.collection('game_session').doc(GAME_DOC_ID), { round: 1, players: {} });
-    
+    batch.set(db.collection('game_session').doc(GAME_DOC_ID), { round: 1, players: {}, state: 'active' });
     const usersSnap = await db.collection('users').get();
     usersSnap.forEach(doc => {
-        batch.update(doc.ref, {
-            gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0
-        });
+        batch.update(doc.ref, { gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0 });
     });
-
     await batch.commit();
     toast("تم فورمات النظام بالكامل ☢️");
     document.getElementById('adminModal').style.display = 'none';
-    prevRanks = { lion: null, sheep: null };
 }
 
 window.openTransferAdmin = function() {
@@ -442,14 +407,7 @@ window.openManagePlayers = function() {
     let html = '';
     Object.keys(usersCache).forEach(uid => {
         const u = usersCache[uid];
-        html += `
-        <div class="player-row" style="cursor:default">
-            <span>${u.name}</span>
-            <div style="display:flex; gap:5px;">
-                <button onclick="editPlayerName('${uid}', '${u.name}')" class="btn-glass" style="padding:5px;">✏️</button>
-                <button onclick="deleteUser('${uid}')" class="btn-glass" style="color:red; border:1px solid red; padding:5px;">🗑️</button>
-            </div>
-        </div>`;
+        html += `<div class="player-row" style="cursor:default"><span>${u.name}</span><div style="display:flex; gap:5px;"><button onclick="editPlayerName('${uid}', '${u.name}')" class="btn-glass" style="padding:5px;">✏️</button><button onclick="deleteUser('${uid}')" class="btn-glass" style="color:red; border:1px solid red; padding:5px;">🗑️</button></div></div>`;
     });
     list.innerHTML = html;
     document.getElementById('managePlayersModal').style.display = 'block';
@@ -462,7 +420,6 @@ window.editPlayerName = async function(uid, oldName) {
         toast("تم تعديل الاسم");
     }
 }
-
 window.deleteUser = async function(uid) {
     if(!confirm("مسح المستخدم نهائياً؟")) return;
     const update = {}; update[`players.${uid}`] = firebase.firestore.FieldValue.delete();
@@ -472,7 +429,7 @@ window.deleteUser = async function(uid) {
 }
 
 // ==========================================
-// 9. إنهاء وحفظ (مع الشهادات) 🦁📜
+// 9. إنهاء وحفظ (مع الشهادات المتزامنة) 🦁🌍
 // ==========================================
 window.finishGameAndArchive = async function() {
     if(!confirm("⚠️ إنهاء اللعبة وتوزيع الشهادات؟")) return;
@@ -481,7 +438,6 @@ window.finishGameAndArchive = async function() {
     const pIds = Object.keys(playersObj);
     if(pIds.length < 2) return toast("عدد اللاعبين قليل!");
 
-    // 1. حساب الترتيب
     const sorted = pIds.map(uid => ({
         uid, 
         name: usersCache[uid]?.name || "مجهول",
@@ -491,18 +447,10 @@ window.finishGameAndArchive = async function() {
     const lion = sorted[0]; 
     const sheep = sorted[sorted.length - 1]; 
     
-    // قائمة الضحايا والشهود
     const victimsNames = sorted.filter(p => p.uid !== lion.uid).map(p => p.name).join(" - ");
     const witnessesNames = sorted.filter(p => p.uid !== sheep.uid).map(p => p.name).join(" - ");
 
-    // 2. تخزين النتائج للعرض
-    finalResults = {
-        lion: { name: lion.name, victims: victimsNames },
-        sheep: { name: sheep.name, witnesses: witnessesNames },
-        date: new Date().toLocaleDateString('ar-EG')
-    };
-
-    // 3. تحديث الداتا بيز
+    // 1. تحديث الأرقام
     const batch = db.batch();
     pIds.forEach((uid, index) => {
         const ref = db.collection('users').doc(uid);
@@ -513,18 +461,28 @@ window.finishGameAndArchive = async function() {
         if (index === pIds.length - 2 && pIds.length > 3) batch.update(ref, { goatCount: firebase.firestore.FieldValue.increment(1) });
     });
 
-    // 4. تصفير اللعبة
-    batch.set(db.collection('game_session').doc(GAME_DOC_ID), { round: 1, players: {} });
+    // 2. تغيير حالة اللعبة إلى finished وحفظ النتائج للعرض
+    const resultsData = {
+        lion: { name: lion.name, victims: victimsNames },
+        sheep: { name: sheep.name, witnesses: witnessesNames },
+        date: new Date().toLocaleDateString('ar-EG')
+    };
+
+    // تحديث الداتا بيز (ده اللي هيشغل المودال عند الكل)
+    batch.update(db.collection('game_session').doc(GAME_DOC_ID), {
+        state: 'finished',
+        finalResults: resultsData
+    });
 
     await batch.commit();
     localSelection.clear();
     prevRanks = { lion: null, sheep: null };
-
-    // 5. عرض الشهادات
-    showCertificate('lion');
 }
 
+// دالة عرض الشهادة (بتشتغل تلقائي من Listener)
 window.showCertificate = function(type) {
+    if (!localFinalResults) return; // لو مفيش نتايج، متعملش حاجة
+
     const modal = document.getElementById('certModal');
     const card = document.getElementById('certCard');
     const title = document.getElementById('certTitle');
@@ -536,15 +494,15 @@ window.showCertificate = function(type) {
     const closeBtn = document.getElementById('closeCertBtn');
 
     modal.style.display = 'flex';
-    date.innerText = finalResults.date;
+    date.innerText = localFinalResults.date;
 
     if (type === 'lion') {
         // شهادة الأسد
         card.className = 'cert-card cert-theme-lion';
         icon.innerText = '🦁👑';
         title.innerText = 'وثيقة هيمنة وسيطرة';
-        text.innerHTML = `نقر ونعترف نحن (ضحايا الجيم) أن<br><span style="font-size:24px; color:#d97706;">${finalResults.lion.name}</span><br>هو عمهم وحارق دمهم، وقد فاز بجدارة واكتسح الجميع!`;
-        list.innerText = finalResults.lion.victims;
+        text.innerHTML = `نقر ونعترف نحن (ضحايا الجيم) أن<br><span style="font-size:24px; color:#d97706;">${localFinalResults.lion.name}</span><br>هو عمهم وحارق دمهم، وقد فاز بجدارة واكتسح الجميع!`;
+        list.innerText = localFinalResults.lion.victims;
         
         playSound('soundLion');
         confetti({ particleCount: 200, spread: 100 });
@@ -559,8 +517,8 @@ window.showCertificate = function(type) {
         card.className = 'cert-card cert-theme-sheep';
         icon.innerText = '🐑🌿';
         title.innerText = 'شهادة تقدير (بالخيبة)';
-        text.innerHTML = `تتشرف إدارة اللعبة بمنح اللاعب<br><span style="font-size:24px; color:#059669;">${finalResults.sheep.name}</span><br>لقب "ملك البرسيم" لهذا المساء، مع تمنياتنا له بتعلم اللعب مستقبلاً!`;
-        list.innerText = `الشهود على الفضيحة: ${finalResults.sheep.witnesses}`;
+        text.innerHTML = `تتشرف إدارة اللعبة بمنح اللاعب<br><span style="font-size:24px; color:#059669;">${localFinalResults.sheep.name}</span><br>لقب "ملك البرسيم" لهذا المساء، مع تمنياتنا له بتعلم اللعب مستقبلاً!`;
+        list.innerText = `الشهود على الفضيحة: ${localFinalResults.sheep.witnesses}`;
         
         playSound('soundSheep');
 
@@ -569,63 +527,50 @@ window.showCertificate = function(type) {
     }
 }
 
-window.closeCert = function() {
+// إغلاق الشهادة وتصفير اللعبة (للأدمن فقط هو اللي بيصفر)
+window.closeCert = async function() {
     document.getElementById('certModal').style.display = 'none';
-    toast("تم حفظ النتائج.. موسم جديد يبدأ الآن! 🚀");
-}
-
-window.openFameModal = function() {
-    const list = document.getElementById('fameList');
-    const sortedUsers = Object.values(usersCache).sort((a,b) => (b.lionCount||0) - (a.lionCount||0));
-    let html = '';
-    sortedUsers.forEach((u, i) => {
-        html += `
-        <div class="player-row" style="cursor:default; display:block;">
-            <div style="display:flex; justify-content:space-between;">
-                <b>#${i+1} ${u.avatar} ${u.name}</b>
-                <span style="font-size:12px; color:#aaa">${u.gamesPlayed||0} جيم</span>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:5px; font-size:12px;">
-                <span>🦁 ${u.lionCount||0}</span><span>🐯 ${u.tigerCount||0}</span><span>🐐 ${u.goatCount||0}</span><span>🐑 ${u.sheepCount||0}</span>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-    document.getElementById('fameModal').style.display = 'block';
+    
+    // لو أنا الأدمن، أنا المسؤول عن تصفير اللعبة فعلياً
+    if (currentUser && currentUser.isAdmin) {
+        // تصفير اللعبة وإرجاع الحالة لـ active
+        await db.collection('game_session').doc(GAME_DOC_ID).set({ 
+            round: 1, 
+            players: {}, 
+            state: 'active' 
+        });
+        toast("تم تصفير اللعبة وبدء موسم جديد 🚀");
+    } else {
+        toast("في انتظار الأدمن لبدء جيم جديد...");
+    }
 }
 
 // ==========================================
-// 10. المساعدات (Utils)
+// 10. المساعدات
 // ==========================================
 function calculateTotal(s) { return Object.values(s).reduce((a,b)=>a+(Number(b)||0),0); }
-
 window.saveScore = async function(uid, round, val) {
     const key = `players.${uid}.scores.${round}`;
     const op = val === '' ? firebase.firestore.FieldValue.delete() : Number(val);
     await db.collection('game_session').doc(GAME_DOC_ID).update({ [key]: op });
 }
-
 window.changeRound = async function(d) {
     if (!currentUser.isAdmin) return;
     const next = Math.max(1, Math.min(10, (gameData.round || 1) + d));
     await db.collection('game_session').doc(GAME_DOC_ID).update({ round: next });
 }
-
 window.openSubModal = function(uidOut) {
     playerToSub = uidOut;
     const list = document.getElementById('subCandidatesList');
     let html = '';
     const activePlayers = gameData.players || {};
     Object.keys(usersCache).forEach(uid => {
-        if (!activePlayers[uid]) {
-            html += `<div class="player-row" onclick="performSub('${uid}')"><span>${usersCache[uid].avatar} ${usersCache[uid].name}</span></div>`;
-        }
+        if (!activePlayers[uid]) html += `<div class="player-row" onclick="performSub('${uid}')"><span>${usersCache[uid].avatar} ${usersCache[uid].name}</span></div>`;
     });
     if(html==='') html='<p style="text-align:center">مفيش بدلاء</p>';
     list.innerHTML = html;
     document.getElementById('subModal').style.display = 'block';
 }
-
 window.performSub = async function(uidIn) {
     if(!confirm("تبديل؟")) return;
     const scores = gameData.players[playerToSub].scores;
