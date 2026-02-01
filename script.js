@@ -15,7 +15,7 @@ const auth = firebase.auth();
 db.settings({ experimentalForceLongPolling: true, experimentalAutoDetectLongPolling: false, merge: true });
 
 // ==========================================
-// 2. المتغيرات والرسائل
+// 2. المتغيرات
 // ==========================================
 const GAME_DOC_ID = "game_session_v1";
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻"];
@@ -24,8 +24,6 @@ const PHASES = [
     "تسلسل (8)", "تسلسل (9)", "2 مجموعات (4)", "7 كروت لون واحد",
     "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
 ];
-
-// 🤡 كومنتات مضحكة
 const FUNNY_COMMENTS = {
     lion: ["بابا المجال وصل 🦁", "ولا كلمة يا خروف 🤫", "القمة بتاعتي لوحدي"],
     tiger: ["هجيبك يا أسد 🐅", "الوصيف الذهبي", "قربت أوي"],
@@ -33,14 +31,7 @@ const FUNNY_COMMENTS = {
     sheep: ["ملك البرسيم 🌿", "يا فضيحتك 🐑", "حد يطلب الاسعاف 😂", "المركز الأخير بجدارة"],
     normal: ["ركز في ورقك 🃏", "العب بذكاء", "لسه فيها أمل"]
 };
-
-// 🤡 كومنتات السكيب
-const SKIP_COMMENTS = [
-    "لبس السكيب يا معلم 😂", 
-    "حظه وحش أوي 🌚", 
-    "خدلك بريك يا بطل ☕", 
-    "معلش تتعوض الجيم الجاي 😜"
-];
+const SKIP_COMMENTS = ["لبس السكيب 😂", "حظه وحش أوي 🌚", "خدلك بريك ☕", "تتعوض 😜"];
 
 let currentUser = null;
 let usersCache = {};
@@ -48,6 +39,8 @@ let gameData = { round: 1, players: {} };
 let listeners = [];
 let localSelection = new Set();
 let playerToSub = null;
+// عشان الأصوات متشتغلش عمال على بطال
+let prevRanks = { lion: null, sheep: null };
 
 // ==========================================
 // 3. البداية
@@ -59,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else showScreen('authScreen');
     });
 
-    // ربط الأزرار
     const click = (id, func) => { const el = document.getElementById(id); if(el) el.onclick = func; };
     click('btnLogin', login);
     click('btnRegister', register);
@@ -69,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 4. المستخدمين
+// 4. المستخدمين والتعديل
 // ==========================================
 async function loadUserData(uid) {
     try {
@@ -79,7 +71,6 @@ async function loadUserData(uid) {
             document.getElementById('myName').innerText = currentUser.name;
             document.getElementById('myAvatar').innerText = currentUser.avatar;
             
-            // ظهور أدوات الأدمن
             if (currentUser.isAdmin) {
                 document.getElementById('adminSettingsBtn').style.display = 'block';
                 document.getElementById('adminEndGamePanel').style.display = 'block';
@@ -113,12 +104,21 @@ async function register() {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
         await db.collection('users').doc(cred.user.uid).set({
             name, avatar, email, isAdmin: false,
-            // عدادات التاريخ
             gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         toast("تم التسجيل");
     } catch(e) { toast(e.message); }
+}
+
+// تعديل البروفايل الشخصي
+window.editMyProfile = async function() {
+    const newName = prompt("أدخل اسمك الجديد:", currentUser.name);
+    if(newName && newName.trim() !== "") {
+        await db.collection('users').doc(currentUser.uid).update({ name: newName });
+        document.getElementById('myName').innerText = newName;
+        toast("تم تغيير الاسم ✅");
+    }
 }
 
 async function logout() { await auth.signOut(); location.reload(); }
@@ -127,16 +127,12 @@ async function logout() { await auth.signOut(); location.reload(); }
 // 5. الاستماع والبيانات
 // ==========================================
 function setupRealtimeListeners() {
-    // 1. المستخدمين
     listeners.push(db.collection('users').onSnapshot(snap => {
         snap.forEach(doc => usersCache[doc.id] = doc.data());
         if(document.getElementById('lobbyScreen').classList.contains('active')) renderLobby();
-        // تحديث المودالات لو مفتوحة
-        if(document.getElementById('transferAdminModal').style.display==='block') openTransferAdmin();
         if(document.getElementById('managePlayersModal').style.display==='block') openManagePlayers();
     }));
 
-    // 2. اللعبة
     const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
     gameRef.get().then(doc => { if(!doc.exists) gameRef.set({ round: 1, players: {} }); });
 
@@ -145,24 +141,19 @@ function setupRealtimeListeners() {
             gameData = doc.data();
             updateGameUI();
             
-            // 🔥 المنطق الذكي للزرار (بدء / عودة)
-            const btn = document.getElementById('mainGameBtn');
-            const activeCount = Object.keys(gameData.players || {}).length;
-            if (btn) {
-                if (activeCount > 0) {
-                    btn.innerHTML = "👀 العودة للمباراة الجارية";
-                    btn.classList.remove('btn-success');
-                    btn.classList.add('btn-glass', 'gold-border');
-                } else {
-                    btn.innerHTML = "⚽ بدء المباراة";
-                    btn.classList.remove('btn-glass', 'gold-border');
-                    btn.classList.add('btn-success');
-                }
+            // 🔥 منطق العودة للمباراة
+            const amInGame = gameData.players && gameData.players[currentUser.uid];
+            const returnBtn = document.getElementById('returnToGamePanel');
+            if (amInGame) {
+                returnBtn.style.display = 'block'; // اظهر زر العودة
+                // لو أنا مش في اللوبي ودخلت الجيم، حدث الزرار
+            } else {
+                returnBtn.style.display = 'none';
             }
 
-            // التوجيه التلقائي للاعب
-            if (gameData.players && gameData.players[currentUser.uid] && document.getElementById('lobbyScreen').classList.contains('active')) {
-                showScreen('gameScreen');
+            // لو أنا لسه فاتح ولقيت نفسي في الجيم (أول مرة)
+            if (amInGame && document.getElementById('lobbyScreen').classList.contains('active') && !localSelection.has(currentUser.uid)) {
+                // ملاحظة: مش هننقل اجباري عشان يقدر يعدل بروفايله، هنسيبله زرار العودة
             }
         }
         renderLobby();
@@ -187,45 +178,32 @@ function renderLobby() {
         const isSelected = localSelection.has(uid);
         
         let rowClass = '', icon = '';
-        if (isInGame) { 
-            rowClass = 'already-in-game'; 
-            icon = '<span style="font-size:12px; color:var(--success)">بالملعب</span>'; 
-        } else if (isSelected) { 
-            rowClass = 'local-selected'; 
-            icon = '<div class="check-icon">✔</div>'; 
-        } else {
-            icon = '<div class="check-icon"></div>';
-        }
+        if (isInGame) { rowClass = 'already-in-game'; icon = '<span style="color:var(--success)">بالملعب</span>'; }
+        else if (isSelected) { rowClass = 'local-selected'; icon = '<div class="check-icon">✔</div>'; }
+        else { icon = '<div class="check-icon"></div>'; }
 
         const action = (currentUser?.isAdmin && !isInGame) ? `onclick="toggleSelect('${uid}')"` : '';
 
         html += `<div class="player-row ${rowClass}" ${action}>
             <div style="display:flex; align-items:center; gap:10px;">
                 <span style="font-size:24px">${u.avatar}</span><b>${u.name}</b>
-                ${u.isAdmin ? '👑' : ''}
             </div>
             <div>${icon}</div>
         </div>`;
     });
     list.innerHTML = html;
+    
+    const btn = document.getElementById('mainGameBtn');
+    if(localSelection.size > 0) btn.innerHTML = `⚽ إدخال (${localSelection.size}) لاعب`;
+    else btn.innerHTML = "⚽ بدء المباراة";
 }
 
 window.toggleSelect = function(uid) {
     if(localSelection.has(uid)) localSelection.delete(uid); else localSelection.add(uid);
     renderLobby();
-    // تحديث نص الزرار
-    const btn = document.getElementById('mainGameBtn');
-    if(localSelection.size > 0) btn.innerHTML = `⚽ إدخال (${localSelection.size}) لاعب`;
-    else {
-        // رجعه لأصله
-        const activeCount = Object.keys(gameData.players || {}).length;
-        btn.innerHTML = activeCount > 0 ? "👀 العودة للمباراة الجارية" : "⚽ بدء المباراة";
-    }
 }
 
-// الزرار الذكي (بدء أو عودة)
 window.handleGameBtn = async function() {
-    // 1. لو مختار ناس، دخلهم
     if (localSelection.size > 0) {
         if(!confirm(`إدخال ${localSelection.size} لاعبين؟`)) return;
         const currentPlayers = gameData.players || {};
@@ -247,13 +225,12 @@ window.handleGameBtn = async function() {
             showScreen('gameScreen');
         } catch(e) { console.error(e); }
     } else {
-        // 2. لو مش مختار، روح الملعب بس
         showScreen('gameScreen');
     }
 }
 
 // ==========================================
-// 7. الملعب وتوزيع الألقاب
+// 7. الملعب والأصوات
 // ==========================================
 function updateGameUI() {
     const r = gameData.round || 1;
@@ -266,7 +243,6 @@ function updateGameUI() {
     const playersObj = gameData.players || {};
     const pIds = Object.keys(playersObj);
 
-    // الترتيب: الأقل سكور هو الأول (Ascending)
     const sorted = pIds.map(uid => {
         const scores = playersObj[uid].scores || {};
         const total = calculateTotal(scores);
@@ -275,28 +251,42 @@ function updateGameUI() {
         return { uid, ...uInfo, scores, total };
     }).filter(p => p !== null).sort((a, b) => a.total - b.total);
 
+    // 🔥 تشغيل الأصوات عند تغير المراكز 🔥
+    if (sorted.length >= 2) {
+        const currentLion = sorted[0].uid;
+        const currentSheep = sorted[sorted.length-1].uid;
+
+        // لو الأسد اتغير (ومش أول مرة)
+        if (prevRanks.lion && prevRanks.lion !== currentLion) {
+            playSound('soundLion');
+            toast(`🦁 الأسد الجديد: ${usersCache[currentLion].name}`);
+        }
+        // لو الخروف اتغير
+        if (prevRanks.sheep && prevRanks.sheep !== currentSheep) {
+            playSound('soundSheep');
+            toast(`🐑 الخروف الجديد: ${usersCache[currentSheep].name}`);
+        }
+
+        prevRanks.lion = currentLion;
+        prevRanks.sheep = currentSheep;
+    }
+
     let html = '';
     sorted.forEach((p, index) => {
         let rankClass = '', badge = '', comment = '';
-        
-        // توزيع الألقاب الـ 4
         if (sorted.length >= 2) {
-            // الأول = أسد
             if (index === 0) { 
                 rankClass = 'rank-lion'; badge = '<span class="badge">🦁</span>'; 
                 comment = getRandomComment('lion');
             }
-            // الثاني = نمر (لو فيه اكتر من 2)
             else if (index === 1 && sorted.length > 2) {
                 rankClass = 'rank-tiger'; badge = '<span class="badge">🐯</span>';
                 comment = getRandomComment('tiger');
             }
-            // الأخير = خروف
             else if (index === sorted.length - 1) { 
                 rankClass = 'rank-sheep'; badge = '<span class="badge">🐑</span>'; 
                 comment = getRandomComment('sheep');
             }
-            // قبل الأخير = معزة (لو فيه اكتر من 3)
             else if (index === sorted.length - 2 && sorted.length > 3) {
                 rankClass = 'rank-goat'; badge = '<span class="badge">🐐</span>';
                 comment = getRandomComment('goat');
@@ -332,17 +322,19 @@ function updateGameUI() {
     if(document.getElementById('fullTableModal').style.display === 'block') renderFullTable(sorted, r);
 }
 
+function playSound(id) {
+    const audio = document.getElementById(id);
+    if(audio) { audio.currentTime = 0; audio.play().catch(e=>{}); }
+}
+
 function getRandomComment(type) {
     const list = FUNNY_COMMENTS[type] || FUNNY_COMMENTS['normal'];
     return list[Math.floor(Math.random() * list.length)];
 }
 
-// السكيب العشوائي
 window.randomSkip = function() {
     const pIds = Object.keys(gameData.players || {});
     if (pIds.length < 2) return toast("مفيش حد غيرك!");
-    
-    // استثناء نفسي
     const candidates = pIds.filter(uid => uid !== currentUser.uid);
     if (candidates.length === 0) return;
 
@@ -353,37 +345,38 @@ window.randomSkip = function() {
     document.getElementById('skipTargetName').innerText = victimName;
     document.getElementById('skipComment').innerText = comment;
     document.getElementById('skipModal').style.display = 'flex';
+    
+    playSound('soundSkip'); // صوت السكيب
 }
 
 // ==========================================
-// 8. إعدادات الأدمن (المودال الجديد)
+// 8. إعدادات الأدمن (تصفير المصنع الشامل)
 // ==========================================
 window.openAdminModal = () => document.getElementById('adminModal').style.display = 'block';
 
-// 1. تصفير الاسكورات (فقط)
-window.resetScoresOnly = async function() {
-    if(!confirm("تصفير الاسكورات وإعادة الجولة لـ 1 (اللاعبين هيفضلوا)؟")) return;
-    const playersObj = gameData.players || {};
-    // امسح الاسكورات لكل لاعب
-    Object.keys(playersObj).forEach(uid => playersObj[uid] = { scores: {} });
-    
-    await db.collection('game_session').doc(GAME_DOC_ID).update({
-        round: 1,
-        players: playersObj
-    });
-    toast("تم تصفير الأرقام 🔄");
-    document.getElementById('adminModal').style.display = 'none';
-}
-
-// 2. تصفير شامل (مسح اللاعبين)
+// تصفير المصنع (يمسح كل حاجة)
 window.resetGameCompletely = async function() {
-    if(!confirm("⚠️ مسح كل شيء (طرد اللاعبين وتصفير اللعبة)؟")) return;
-    await db.collection('game_session').doc(GAME_DOC_ID).set({ round: 1, players: {} });
-    toast("تم فورمات اللعبة ☢️");
+    if(!confirm("⚠️ تحذير نهائي: سيتم مسح اللعبة الحالية + مسح تاريخ لوحة الشرف للجميع!\nهل أنت متأكد؟")) return;
+    
+    const batch = db.batch();
+    
+    // 1. تصفير اللعبة
+    batch.set(db.collection('game_session').doc(GAME_DOC_ID), { round: 1, players: {} });
+    
+    // 2. تصفير تاريخ جميع اللاعبين
+    const usersSnap = await db.collection('users').get();
+    usersSnap.forEach(doc => {
+        batch.update(doc.ref, {
+            gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0
+        });
+    });
+
+    await batch.commit();
+    toast("تم فورمات النظام بالكامل ☢️");
     document.getElementById('adminModal').style.display = 'none';
+    prevRanks = { lion: null, sheep: null };
 }
 
-// 3. نقل الأدمن
 window.openTransferAdmin = function() {
     const list = document.getElementById('adminCandidatesList');
     let html = '';
@@ -404,7 +397,7 @@ window.transferAdmin = async function(newAdminUid) {
     location.reload();
 }
 
-// 4. إدارة اللاعبين (حذف/تعديل)
+// إدارة اللاعبين (إضافة زر التعديل)
 window.openManagePlayers = function() {
     const list = document.getElementById('manageList');
     let html = '';
@@ -413,69 +406,66 @@ window.openManagePlayers = function() {
         html += `
         <div class="player-row" style="cursor:default">
             <span>${u.name}</span>
-            <button onclick="deleteUser('${uid}')" class="btn-glass" style="color:red; border:1px solid red; width:auto; padding:5px;">حذف</button>
+            <div style="display:flex; gap:5px;">
+                <button onclick="editPlayerName('${uid}', '${u.name}')" class="btn-glass" style="padding:5px;">✏️</button>
+                <button onclick="deleteUser('${uid}')" class="btn-glass" style="color:red; border:1px solid red; padding:5px;">🗑️</button>
+            </div>
         </div>`;
     });
     list.innerHTML = html;
     document.getElementById('managePlayersModal').style.display = 'block';
 }
+
+// دالة تعديل اسم لاعب (للأدمن)
+window.editPlayerName = async function(uid, oldName) {
+    const newName = prompt("تعديل اسم اللاعب:", oldName);
+    if(newName && newName.trim() !== "") {
+        await db.collection('users').doc(uid).update({ name: newName });
+        toast("تم تعديل الاسم");
+    }
+}
+
 window.deleteUser = async function(uid) {
     if(!confirm("مسح المستخدم نهائياً؟")) return;
-    // لازم نمسحه من الجيم الأول لو جوه
     const update = {}; update[`players.${uid}`] = firebase.firestore.FieldValue.delete();
     db.collection('game_session').doc(GAME_DOC_ID).update(update).catch(()=>{});
-    // مسح من اليوزرز
     await db.collection('users').doc(uid).delete();
-    openManagePlayers(); // تحديث القائمة
+    openManagePlayers();
 }
 
 // ==========================================
-// 9. إنهاء وحفظ التاريخ (Hall of Fame)
+// 9. إنهاء وحفظ
 // ==========================================
 window.finishGameAndArchive = async function() {
     if(!confirm("⚠️ إنهاء اللعبة وتوزيع الألقاب؟")) return;
-    
     const playersObj = gameData.players || {};
     const pIds = Object.keys(playersObj);
     if(pIds.length < 2) return toast("عدد اللاعبين قليل!");
 
-    // ترتيب عشان نعرف الألقاب
     const sorted = pIds.map(uid => ({
         uid, total: calculateTotal(playersObj[uid].scores || {})
     })).sort((a, b) => a.total - b.total);
 
     const batch = db.batch();
-
     pIds.forEach((uid, index) => {
         const ref = db.collection('users').doc(uid);
         batch.update(ref, { gamesPlayed: firebase.firestore.FieldValue.increment(1) });
-        
-        // الأول (أسد)
         if (index === 0) batch.update(ref, { lionCount: firebase.firestore.FieldValue.increment(1) });
-        // الثاني (نمر)
         if (index === 1 && pIds.length > 2) batch.update(ref, { tigerCount: firebase.firestore.FieldValue.increment(1) });
-        // الأخير (خروف)
         if (index === pIds.length - 1) batch.update(ref, { sheepCount: firebase.firestore.FieldValue.increment(1) });
-        // قبل الأخير (معزة)
         if (index === pIds.length - 2 && pIds.length > 3) batch.update(ref, { goatCount: firebase.firestore.FieldValue.increment(1) });
     });
 
-    // احتفال
     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-
-    // تصفير الجيم
     batch.set(db.collection('game_session').doc(GAME_DOC_ID), { round: 1, players: {} });
-
     await batch.commit();
-    toast("🏆 تم حفظ الألقاب وتصفير اللعبة!");
+    toast("🏆 تم حفظ الألقاب!");
+    prevRanks = { lion: null, sheep: null };
 }
 
-// عرض لوحة الشرف
 window.openFameModal = function() {
     const list = document.getElementById('fameList');
-    // تحويل الكاش لمصفوفة وترتيبها بالأسود
     const sortedUsers = Object.values(usersCache).sort((a,b) => (b.lionCount||0) - (a.lionCount||0));
-    
     let html = '';
     sortedUsers.forEach((u, i) => {
         html += `
@@ -485,10 +475,7 @@ window.openFameModal = function() {
                 <span style="font-size:12px; color:#aaa">${u.gamesPlayed||0} جيم</span>
             </div>
             <div style="display:flex; gap:10px; margin-top:5px; font-size:12px;">
-                <span>🦁 ${u.lionCount||0}</span>
-                <span>🐯 ${u.tigerCount||0}</span>
-                <span>🐐 ${u.goatCount||0}</span>
-                <span>🐑 ${u.sheepCount||0}</span>
+                <span>🦁 ${u.lionCount||0}</span><span>🐯 ${u.tigerCount||0}</span><span>🐐 ${u.goatCount||0}</span><span>🐑 ${u.sheepCount||0}</span>
             </div>
         </div>`;
     });
@@ -496,9 +483,6 @@ window.openFameModal = function() {
     document.getElementById('fameModal').style.display = 'block';
 }
 
-// ==========================================
-// 10. المساعدات (Utils)
-// ==========================================
 function calculateTotal(s) { return Object.values(s).reduce((a,b)=>a+(Number(b)||0),0); }
 window.saveScore = async function(uid, round, val) {
     const key = `players.${uid}.scores.${round}`;
@@ -510,16 +494,13 @@ window.changeRound = async function(d) {
     const next = Math.max(1, Math.min(10, (gameData.round || 1) + d));
     await db.collection('game_session').doc(GAME_DOC_ID).update({ round: next });
 }
-// التبديل
 window.openSubModal = function(uidOut) {
     playerToSub = uidOut;
     const list = document.getElementById('subCandidatesList');
     let html = '';
     const activePlayers = gameData.players || {};
     Object.keys(usersCache).forEach(uid => {
-        if (!activePlayers[uid]) {
-            html += `<div class="player-row" onclick="performSub('${uid}')"><span>${usersCache[uid].avatar} ${usersCache[uid].name}</span></div>`;
-        }
+        if (!activePlayers[uid]) html += `<div class="player-row" onclick="performSub('${uid}')"><span>${usersCache[uid].avatar} ${usersCache[uid].name}</span></div>`;
     });
     if(html==='') html='<p style="text-align:center">مفيش بدلاء</p>';
     list.innerHTML = html;
