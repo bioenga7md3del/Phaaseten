@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
 
@@ -38,20 +39,22 @@
 
         <section id="lobbyScreen" class="screen">
             <header class="top-bar">
-                <div class="profile-badge"><span id="myAvatar">😎</span> <span id="myName">...</span></div>
-                <button id="btnLogout" class="btn-icon">🚪</button>
+                <div class="profile-badge" onclick="openProfileModal()">
+                    <span id="myAvatar">😎</span> <span id="myName">...</span>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="openFameModal()" class="btn-icon gold-border">🏆</button>
+                    <button id="adminSettingsBtn" onclick="openAdminModal()" class="btn-icon" style="display:none;">⚙️</button>
+                    <button id="btnLogout" class="btn-icon">🚪</button>
+                </div>
             </header>
 
             <div class="glass-card">
                 <h2 style="color:var(--gold)">غرفة الانتظار 🛋️</h2>
                 
-                <div id="adminControls" class="admin-panel" style="display:none;">
-                    <h3>⚡ تحكم المدير</h3>
-                    <div class="btn-group">
-                        <button onclick="startGame()" class="btn-success">⚽ بدء المباراة / دخول</button>
-                        <button onclick="finishGameAndArchive()" class="btn-danger-outline">🏆 إنهاء وحفظ التاريخ</button>
-                    </div>
-                    <p style="font-size:12px; color:#aaa; margin-top:5px">حدد اللاعبين من القائمة بالأسفل ثم اضغط بدء</p>
+                <div id="adminQuickControls" class="admin-panel" style="display:none;">
+                    <button id="mainGameBtn" onclick="handleGameBtn()" class="btn-success pulse-anim">⚽ بدء المباراة</button>
+                    <p style="font-size:12px; color:#aaa; margin-top:5px; text-align:center;">حدد اللاعبين للدخول 👇</p>
                 </div>
                 
                 <div class="player-list-container">
@@ -68,34 +71,82 @@
                     <button id="btnNextRound" class="nav-btn" style="display:none;">❯</button>
                 </div>
                 <div class="header-actions">
-                    <button onclick="goToLobby()" class="btn-glass warning">🏠 اللوبي</button>
-                    <button onclick="leaveGameCompletely()" class="btn-glass danger">🏃‍♂️ خروج نهائي</button>
+                    <button onclick="goToLobby()" class="btn-glass warning">🏠</button>
                 </div>
             </header>
 
-            <div class="glass-panel" style="margin-bottom:15px; display:flex; gap:10px;">
-                <button onclick="openTableModal()" class="btn-glass" style="flex:1">📊 الجدول الكامل</button>
+            <div class="glass-panel" style="margin-bottom:15px; display:flex; gap:5px;">
+                <button onclick="openTableModal()" class="btn-glass" style="flex:1">📊 الترتيب</button>
+                <button onclick="randomSkip()" class="btn-glass" style="flex:1; border-color:var(--danger); color:var(--danger)">🎲 سكيب عشوائي</button>
             </div>
 
             <div id="roundPhaseDesc" class="phase-desc">-- المطلوب --</div>
             <div id="gamePlayersContainer" class="cards-container"></div>
+            
+            <div id="adminEndGamePanel" style="margin-top:20px; display:none;">
+                <button onclick="finishGameAndArchive()" class="btn-danger-outline full-width">💾 إنهاء المباراة وحفظ الألقاب</button>
+            </div>
         </section>
 
     </div>
 
-    <div id="tableModal" class="modal">
+    <div id="fullTableModal" class="modal">
+        <div class="modal-content table-modal">
+            <div class="modal-header"><h3>📊 الجدول الكامل</h3><button onclick="document.getElementById('fullTableModal').style.display='none'" class="close-btn">✕</button></div>
+            <div class="table-scroll"><table id="scoreTable"><thead><tr></tr></thead><tbody id="tableBody"></tbody></table></div>
+        </div>
+    </div>
+
+    <div id="fameModal" class="modal">
+        <div class="modal-content table-modal">
+            <div class="modal-header"><h3 style="color:var(--gold)">🏆 لوحة الشرف</h3><button onclick="document.getElementById('fameModal').style.display='none'" class="close-btn">✕</button></div>
+            <div id="fameList" class="grid-list"></div>
+        </div>
+    </div>
+
+    <div id="adminModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>🏆 الترتيب</h3><button onclick="closeTableModal()" class="close-btn">✕</button></div>
-            <div class="table-wrapper"><table id="scoreTable"><thead><tr></tr></thead><tbody id="tableBody"></tbody></table></div>
+            <div class="modal-header"><h3>⚙️ إعدادات الإدارة</h3><button onclick="document.getElementById('adminModal').style.display='none'" class="close-btn">✕</button></div>
+            <div class="settings-list">
+                <button onclick="openTransferAdmin()" class="btn-glass">🔑 نقل الأدمن</button>
+                <button onclick="resetScoresOnly()" class="btn-glass">🔄 تصفير الاسكورات (إعادة الجولة 1)</button>
+                <button onclick="openManagePlayers()" class="btn-glass">👥 إدارة اللاعبين (حذف/تعديل)</button>
+                <hr style="border-color:#333; margin:10px 0;">
+                <button onclick="resetGameCompletely()" class="btn-danger-outline">☢️ تصفير المصنع (مسح كل شيء)</button>
+            </div>
         </div>
     </div>
 
     <div id="subModal" class="modal">
-        <div class="modal-content center-box" style="margin:0;">
+        <div class="modal-content">
             <h3>🔄 تبديل لاعب</h3>
-            <p>اختر اللاعب البديل من اللوبي:</p>
-            <div id="subCandidatesList" class="grid-list" style="max-height:200px;"></div>
-            <button onclick="document.getElementById('subModal').style.display='none'" class="btn-glass">إلغاء</button>
+            <div id="subCandidatesList" class="grid-list"></div>
+            <button onclick="document.getElementById('subModal').style.display='none'" class="btn-glass full-width">إلغاء</button>
+        </div>
+    </div>
+
+    <div id="skipModal" class="modal center-modal">
+        <div class="modal-content text-center">
+            <div style="font-size:60px">🤡</div>
+            <h2 id="skipTargetName" style="color:var(--danger)"></h2>
+            <p id="skipComment" style="font-size:18px; color:#aaa;"></p>
+            <button onclick="document.getElementById('skipModal').style.display='none'" class="btn-primary full-width">حبيبي ولا يهمك 😂</button>
+        </div>
+    </div>
+
+    <div id="transferAdminModal" class="modal">
+        <div class="modal-content">
+            <h3>🔑 اختر الأدمن الجديد</h3>
+            <div id="adminCandidatesList" class="grid-list"></div>
+            <button onclick="document.getElementById('transferAdminModal').style.display='none'" class="btn-glass full-width">إلغاء</button>
+        </div>
+    </div>
+
+    <div id="managePlayersModal" class="modal">
+        <div class="modal-content">
+            <h3>👥 حذف/تعديل اللاعبين</h3>
+            <div id="manageList" class="grid-list"></div>
+            <button onclick="document.getElementById('managePlayersModal').style.display='none'" class="btn-glass full-width">إغلاق</button>
         </div>
     </div>
 
