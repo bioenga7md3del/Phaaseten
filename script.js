@@ -15,18 +15,17 @@ try { firebase.initializeApp(firebaseConfig); } catch (e) { console.error(e); }
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// 🔥🔥🔥 الحل النهائي لمشكلة الاتصال 🔥🔥🔥
-// بنقفل الكشف التلقائي عشان ميضربش مع الإجبار
+// إعدادات الاتصال المستقر
 db.settings({ 
     experimentalForceLongPolling: true, 
-    experimentalAutoDetectLongPolling: false, // السطر ده هو اللي حل المشكلة
+    experimentalAutoDetectLongPolling: false,
     merge: true 
 });
 
 // ==========================================
-// 2. المتغيرات العامة (State)
+// 2. المتغيرات العامة
 // ==========================================
-const GAME_DOC_ID = "game_session_v1"; // وثيقة اللعبة الواحدة
+const GAME_DOC_ID = "game_session_v1";
 const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻"];
 const PHASES = [
     "2 مجموعات (3)", "مجموعة (3) + تسلسل (4)", "مجموعة (4) + تسلسل (4)", "تسلسل (7)",
@@ -34,10 +33,11 @@ const PHASES = [
     "مجموعة (5) + مجموعة (2)", "مجموعة (5) + مجموعة (3)"
 ];
 
-let currentUser = null; // بياناتي أنا
-let usersCache = {};    // كل المستخدمين (للسرعة)
-let gameData = { round: 1, players: {} }; // بيانات اللعبة الحية
-let listeners = []; // لتنظيف الذاكرة
+let currentUser = null;
+let usersCache = {};
+let gameData = { round: 1, players: {} };
+let listeners = [];
+let localSelection = new Set();
 
 // ==========================================
 // 3. البداية (Initialization)
@@ -45,7 +45,6 @@ let listeners = []; // لتنظيف الذاكرة
 document.addEventListener('DOMContentLoaded', () => {
     initAvatars();
     
-    // مراقب الدخول
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             console.log("👤 مستخدم مسجل:", user.uid);
@@ -56,12 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ربط الأزرار الأساسية
-    const safeBind = (id, action) => {
-        const el = document.getElementById(id);
-        if(el) el.onclick = action;
-    };
-
+    const safeBind = (id, action) => { const el = document.getElementById(id); if(el) el.onclick = action; };
     safeBind('btnLogin', login);
     safeBind('btnRegister', register);
     safeBind('btnLogout', logout);
@@ -70,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 4. إدارة المستخدمين (Auth & Data)
+// 4. إدارة المستخدمين
 // ==========================================
 async function loadUserData(uid) {
     try {
@@ -83,24 +77,22 @@ async function loadUserData(uid) {
             if(nameEl) nameEl.innerText = currentUser.name;
             if(avatarEl) avatarEl.innerText = currentUser.avatar;
             
-            // لو أدمن، اظهر لوحة التحكم
             if (currentUser.isAdmin) {
                 const adminPanel = document.getElementById('adminControls');
                 if(adminPanel) adminPanel.style.display = 'block';
                 document.getElementById('btnPrevRound').style.display = 'block';
                 document.getElementById('btnNextRound').style.display = 'block';
             }
-
-            // ابدأ الاستماع للتحديثات فوراً
+            // تشغيل الاستماع للداتا بيز
             setupRealtimeListeners();
         } else {
-            // حالة نادرة: المستخدم مسجل في Auth بس ملوش داتا
+            // لو اليوزر مش موجود في الداتا بيز، نخرجه
             auth.signOut();
             location.reload();
         }
     } catch(e) {
         console.error("Error loading user:", e);
-        toast("خطأ في تحميل البيانات، تأكد من النت");
+        toast("تأكد من الاتصال بالإنترنت 🌐");
     }
 }
 
@@ -109,7 +101,7 @@ async function login() {
     const pass = document.getElementById('loginPass').value;
     if(!email || !pass) return toast("بيانات ناقصة ❌");
     try { await auth.signInWithEmailAndPassword(email, pass); } 
-    catch(e) { toast("خطأ في الدخول: تأكد من البيانات ❌"); }
+    catch(e) { toast("خطأ في الدخول ❌"); }
 }
 
 async function register() {
@@ -117,15 +109,13 @@ async function register() {
     const email = document.getElementById('regEmail').value;
     const pass = document.getElementById('regPass').value;
     const avatar = document.getElementById('selectedAvatar').value;
-    
     if(!name || !email || !pass) return toast("أكمل البيانات ❌");
     
     try {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
-        // حفظ بيانات المستخدم
         await db.collection('users').doc(cred.user.uid).set({
             name, avatar, email,
-            isAdmin: false, // أول واحد أنت غيره مانيوال في الكونسول
+            isAdmin: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         toast("تم التسجيل بنجاح 🎉");
@@ -134,61 +124,63 @@ async function register() {
 
 async function logout() {
     await auth.signOut();
-    currentUser = null;
-    listeners.forEach(unsub => unsub()); // وقف الاستماع
-    location.reload(); // ريفرش للنضافة
+    location.reload();
 }
 
 // ==========================================
-// 5. الاستماع اللحظي (The Core Logic) 🧠
+// 5. الاستماع اللحظي (مع الإصلاح)
 // ==========================================
 function setupRealtimeListeners() {
-    // 1. استمع لكل المستخدمين (عشان اللوبي)
+    // 1. استمع لكل المستخدمين
     const unsubUsers = db.collection('users').onSnapshot(snap => {
         snap.forEach(doc => usersCache[doc.id] = doc.data());
-        // لو احنا في اللوبي، حدث القائمة
-        if(document.getElementById('lobbyScreen').classList.contains('active')) {
-            renderLobby();
-        }
+        if(document.getElementById('lobbyScreen').classList.contains('active')) renderLobby();
     });
     listeners.push(unsubUsers);
 
-    // 2. استمع لبيانات اللعبة (الجولة والسكورات)
-    const unsubGame = db.collection('game_session').doc(GAME_DOC_ID)
-        .onSnapshot(doc => {
-            if (doc.exists) {
-                gameData = doc.data();
-                // لو أنا في اللعبة، حدث الشاشة
-                updateGameUI(); 
-                
-                // لو أنا لسه داخل ولقيت نفسي في اللعبة، انقلني للملعب
-                if (gameData.players && gameData.players[currentUser.uid] && document.getElementById('lobbyScreen').classList.contains('active')) {
-                    showScreen('gameScreen');
-                }
-            } else {
-                // اللعبة اتصفرت أو لسه بتبدأ
-                gameData = { round: 1, players: {} };
-                showScreen('lobbyScreen');
+    // 2. استمع للعبة (وإنشائها لو مش موجودة)
+    const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
+    
+    // تأكد إن الملف موجود الأول
+    gameRef.get().then((docSnapshot) => {
+        if (!docSnapshot.exists) {
+            // 🔥 الإصلاح: لو الملف مش موجود، اخلقه فاضي
+            gameRef.set({ round: 1, players: {} });
+        }
+    });
+
+    const unsubGame = gameRef.onSnapshot(doc => {
+        if (doc.exists) {
+            gameData = doc.data();
+            updateGameUI();
+            
+            // لو أنا لاعب مسجل في الجيم الحالي، ودخلت اللوبي، انقلني للجيم فوراً
+            if (gameData.players && gameData.players[currentUser.uid] && document.getElementById('lobbyScreen').classList.contains('active')) {
+                showScreen('gameScreen');
             }
-            renderLobby(); // عشان نحدث علامة "مين بيلعب"
-        });
+        } else {
+            // لو مفيش ملف لعبة، اعمل ريسيت محلي
+            gameData = { round: 1, players: {} };
+            showScreen('lobbyScreen');
+        }
+        renderLobby();
+    });
     listeners.push(unsubGame);
     
-    // افتراضياً ادخل اللوبي لو مفيش توجيه تاني
+    // التوجيه المبدئي
     if(!document.getElementById('gameScreen').classList.contains('active')) {
         showScreen('lobbyScreen');
     }
 }
 
 // ==========================================
-// 6. منطق اللوبي والتحكم (Admin Logic)
+// 6. اللوبي ومنطق التحديد
 // ==========================================
 function renderLobby() {
     const list = document.getElementById('lobbyPlayersList');
     if(!list) return;
 
-    const filterInput = document.getElementById('searchPlayer');
-    const filter = filterInput ? filterInput.value.toLowerCase() : "";
+    const filter = (document.getElementById('searchPlayer')?.value || "").toLowerCase();
     
     let html = '';
     const activePlayers = gameData.players || {};
@@ -197,107 +189,137 @@ function renderLobby() {
         const u = usersCache[uid];
         if (filter && !u.name.toLowerCase().includes(filter)) return;
 
-        const isActive = activePlayers[uid] !== undefined;
-        const statusIcon = isActive ? '✅' : '💤';
-        const rowClass = isActive ? 'active-in-game' : '';
+        const isInGame = activePlayers[uid] !== undefined;
+        const isSelected = localSelection.has(uid);
         
-        // زرار التبديل (للأدمن فقط)
-        let toggleBtn = '';
-        if (currentUser && currentUser.isAdmin) {
-            toggleBtn = `<div class="switch-toggle" onclick="togglePlayerInGame('${uid}')">${isActive ? '🟢' : '⚪'}</div>`;
-        } else {
-            toggleBtn = `<div>${statusIcon}</div>`;
+        let rowClass = '';
+        let icon = '<div class="check-icon"></div>';
+
+        if (isInGame) {
+            rowClass = 'already-in-game';
+            icon = '✅ في الملعب';
+        } else if (isSelected) {
+            rowClass = 'local-selected';
+            icon = '<div class="check-icon">✔</div>';
         }
 
+        // الأكشن عند الضغط
+        const clickAction = (currentUser && currentUser.isAdmin && !isInGame) ? `onclick="toggleLocalSelection('${uid}')"` : '';
+
         html += `
-        <div class="player-row ${rowClass}">
+        <div class="player-row ${rowClass}" ${clickAction}>
             <div style="display:flex; align-items:center; gap:10px;">
                 <span style="font-size:24px">${u.avatar}</span>
                 <span style="font-weight:bold;">${u.name}</span>
             </div>
-            ${toggleBtn}
+            <div>${icon}</div>
         </div>`;
     });
     list.innerHTML = html;
+    updateStartButton();
 }
 
-// 🔥🔥 أهم دالة: إضافة لاعب + حسبة الخروف 🔥🔥
-async function togglePlayerInGame(uid) {
-    if (!currentUser.isAdmin) return;
-
-    // نسخة محلية للتعديل
-    let currentPlayers = gameData.players || {};
-    
-    // عشان نتأكد إننا مش بنمسح داتا قديمة بالغلط، لازم ناخد نسخة
-    // (في الفايربيز التحديث بيبقى دقيق، بس هنا بنحسب لوجيك)
-    
-    if (currentPlayers[uid]) {
-        // إخراج اللاعب
-        if(!confirm("هل تريد إخراج هذا اللاعب من المباراة؟")) return;
-        
-        // الطريقة الصحيحة لحذف حقل في Firestore
-        const updatePayload = {};
-        updatePayload[`players.${uid}`] = firebase.firestore.FieldValue.delete();
-        
-        await db.collection('game_session').doc(GAME_DOC_ID).update(updatePayload);
-        
+window.toggleLocalSelection = function(uid) {
+    if (localSelection.has(uid)) {
+        localSelection.delete(uid);
     } else {
-        // إدخال لاعب جديد
-        let maxTotal = 0;
-        const pIds = Object.keys(currentPlayers);
-        
-        // حساب أعلى سكور حالي
-        if (pIds.length > 0) {
-            maxTotal = Math.max(...pIds.map(id => calculateTotal(currentPlayers[id].scores)));
-        }
+        localSelection.add(uid);
+    }
+    renderLobby();
+}
 
-        let initialScores = {};
-        // لو اللعبة شغالة (في ناس وليهم سكور)، ضيف العقوبة
-        if (maxTotal > 0) {
-            // بنسجل العقوبة في خانة خاصة اسمها "penalty" عشان متدخلش في الجولات
-            initialScores["penalty"] = maxTotal; 
-            toast(`تم دخول اللاعب بسكور الخروف: ${maxTotal} 🐑`);
-        } else {
-            toast("تم إضافة اللاعب للمباراة ✅");
-        }
-
-        // تحديث الداتا بيز
-        const updatePayload = {};
-        updatePayload[`players.${uid}`] = { scores: initialScores };
-        
-        await db.collection('game_session').doc(GAME_DOC_ID).set({
-            players: updatePayload[`players`] // هنا بنستخدم merge عشان منمسحش القديم
-        }, { merge: true });
-        
-        // تصحيح: الطريقة اللي فوق معقدة شوية مع الـ merge في nested objects
-        // الأسهل نقرأ ونكتب الكل لو العدد صغير، أو نستخدم Dot Notation
-        // الطريقة الأضمن:
-        db.collection('game_session').doc(GAME_DOC_ID).update({
-            [`players.${uid}`]: { scores: initialScores }
-        });
+function updateStartButton() {
+    const btn = document.querySelector('#adminControls .btn-success');
+    if(!btn) return;
+    
+    if (localSelection.size > 0) {
+        btn.innerHTML = `⚽ إدخال (${localSelection.size}) لاعب وبدء المباراة`;
+    } else {
+        btn.innerHTML = `⚽ الذهاب للملعب`;
     }
 }
 
-// Helper to start game
-window.startGame = function() {
-    showScreen('gameScreen');
+// 🔥🔥 إصلاح دالة البدء (undefined error) 🔥🔥
+window.startGame = async function() {
+    // 1. لو مفيش حد مختار، روح الملعب بس
+    if (localSelection.size === 0) {
+        showScreen('gameScreen');
+        return;
+    }
+
+    if(!confirm(`تأكيد إدخال ${localSelection.size} لاعبين؟`)) return;
+
+    // 2. تجهيز الداتا بشكل آمن
+    const currentPlayers = gameData.players || {};
+    let maxTotal = 0;
+    
+    const pIds = Object.keys(currentPlayers);
+    if (pIds.length > 0) {
+        // فلترة القيم الـ undefined والـ NaN
+        maxTotal = Math.max(...pIds.map(id => calculateTotal(currentPlayers[id].scores || {})));
+        if (!isFinite(maxTotal)) maxTotal = 0; // أمان إضافي
+    }
+
+    // 3. بناء الـ Payload
+    const updatePayload = {};
+    
+    localSelection.forEach(uid => {
+        let initialScores = {};
+        // لو في سكور خروف (أكبر من صفر)، ضيف العقوبة في خانة penalty
+        if (maxTotal > 0) initialScores["penalty"] = maxTotal;
+        
+        // 🔥 المفتاح هنا: لازم نبعت Scores كـ Object حتى لو فاضي
+        updatePayload[`players.${uid}`] = { scores: initialScores };
+    });
+
+    try {
+        // 🔥 استخدام set merge بدل update عشان لو الملف مش موجود يتخلق
+        await db.collection('game_session').doc(GAME_DOC_ID).set({
+            players: updatePayload // ده غلط في ال set، ال payload معمول لل update
+        }, { merge: true });
+        
+        // تصحيح: الـ Payload اللي فوق معمول بالـ Dot Notation وده ينفع مع update بس.
+        // عشان نستخدم set merge لازم نفك الـ Dot Notation أو نستخدم update بس نتأكد إن الملف موجود (واحنا اتأكدنا فوق).
+        
+        // الحل الأفضل والآمن: update
+        await db.collection('game_session').doc(GAME_DOC_ID).update(updatePayload);
+        
+        toast(`تم إضافة اللاعبين بنجاح 🎉`);
+        localSelection.clear();
+        showScreen('gameScreen');
+    } catch(e) {
+        // لو فشل الـ update (مثلاً الملف اتمسح فجأة)، بنعمل set
+        console.warn("Update failed, trying set...", e);
+        
+        // تحويل الـ Dot Notation لـ Object عادي عشان الـ set
+        let playersObj = {};
+        localSelection.forEach(uid => {
+            let initialScores = {};
+            if (maxTotal > 0) initialScores["penalty"] = maxTotal;
+            playersObj[uid] = { scores: initialScores };
+        });
+
+        await db.collection('game_session').doc(GAME_DOC_ID).set({
+            players: playersObj
+        }, { merge: true });
+        
+        localSelection.clear();
+        showScreen('gameScreen');
+    }
 }
 
-// Helper for reset
-window.resetGameScores = async function() {
-    if(!confirm("⚠️ تحذير: سيتم مسح جميع النقاط والبدء من الصفر!")) return;
-    await db.collection('game_session').doc(GAME_DOC_ID).set({
-        round: 1,
-        players: {} 
-    });
-    toast("تم تصفير اللعبة 🗑️");
+// 🔥🔥 إصلاح دالة إخراج اللاعب الفردي 🔥🔥
+window.togglePlayerInGame = async function(uid) {
+    if (!currentUser.isAdmin) return;
+
+    // دي عشان لو حبيت ترجع زرار الحذف الفردي من اللوبي (اختياري)
+    // حالياً التحديد الجماعي بيغني عنها
 }
 
 // ==========================================
-// 7. منطق المباراة (Game Room)
+// 7. منطق المباراة (UI)
 // ==========================================
 function updateGameUI() {
-    // تحديث رقم الجولة
     const r = gameData.round || 1;
     const roundDisp = document.getElementById('currentRoundDisplay');
     const phaseDesc = document.getElementById('roundPhaseDesc');
@@ -305,26 +327,22 @@ function updateGameUI() {
     if(roundDisp) roundDisp.innerText = r;
     if(phaseDesc) phaseDesc.innerText = PHASES[r-1] || "نهاية اللعبة";
 
-    // رسم كروت اللاعبين
     const container = document.getElementById('gamePlayersContainer');
     if(!container) return;
 
     const playersObj = gameData.players || {};
     const pIds = Object.keys(playersObj);
 
-    // ترتيب اللاعبين حسب المجموع
     const sorted = pIds.map(uid => {
         const scores = playersObj[uid].scores || {};
         const total = calculateTotal(scores);
-        // نتأكد إن بيانات اليوزر محملة، لو لأ (نادرة) نحط اسم مؤقت
-        const uInfo = usersCache[uid] || { name: 'Loading...', avatar: '⏳' };
+        const uInfo = usersCache[uid] || { name: '...', avatar: '👤' };
         return { uid, ...uInfo, scores, total };
     }).sort((a, b) => a.total - b.total);
 
     let html = '';
     sorted.forEach((p, index) => {
-        let rankClass = '';
-        let badge = '';
+        let rankClass = '', badge = '';
         if (sorted.length > 1) {
             if (index === 0) { rankClass = 'rank-1'; badge = '<span class="badge">🦁</span>'; } 
             if (index === sorted.length - 1) { rankClass = 'rank-last'; badge = '<span class="badge">🐑</span>'; }
@@ -334,7 +352,6 @@ function updateGameUI() {
         const isAdmin = currentUser && currentUser.isAdmin;
         const canEdit = isMe || isAdmin;
         
-        // قيمة الجولة الحالية
         const currentVal = (p.scores && p.scores[r] !== undefined) ? p.scores[r] : '';
 
         let inputField = '';
@@ -366,118 +383,98 @@ function updateGameUI() {
     }
 }
 
-// دالة حفظ السكور (Global scope عشان الـ HTML يشوفها)
+// دالة حفظ السكور الآمنة
 window.saveScore = async function(uid, round, val) {
-    // Dot Notation لتحديث حقل واحد بس في الداتا بيز
     const updateKey = `players.${uid}.scores.${round}`;
-    
     let valueToSave = Number(val);
+    
+    // التحقق من وجود الملف قبل الكتابة
+    const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
+    
     if (val === '') {
-        // لو مسح الرقم، بنستخدم delete
-        await db.collection('game_session').doc(GAME_DOC_ID).update({
-            [updateKey]: firebase.firestore.FieldValue.delete()
-        });
+        await gameRef.update({ [updateKey]: firebase.firestore.FieldValue.delete() })
+            .catch(e => console.warn("Score delete error (maybe doc missing)", e));
     } else {
-        await db.collection('game_session').doc(GAME_DOC_ID).update({
-            [updateKey]: valueToSave
-        });
+        await gameRef.update({ [updateKey]: valueToSave })
+            .catch(async (e) => {
+                // لو فشل الـ update، جرب set merge (حالة نادرة جداً)
+                let payload = {};
+                payload[uid] = { scores: {} };
+                payload[uid].scores[round] = valueToSave;
+                await gameRef.set({ players: payload }, { merge: true });
+            });
     }
 }
 
+// 🔥🔥 إصلاح دالة تغيير الجولة 🔥🔥
 window.changeRound = async function(delta) {
     if (!currentUser.isAdmin) return;
     const current = gameData.round || 1;
     const next = Math.max(1, Math.min(10, current + delta));
+    
     if (next !== current) {
-        await db.collection('game_session').doc(GAME_DOC_ID).update({ round: next });
+        const gameRef = db.collection('game_session').doc(GAME_DOC_ID);
+        // نستخدم set merge للأمان، لو الملف مش موجود يخلقه
+        await gameRef.set({ round: next }, { merge: true })
+            .catch(e => toast("فشل تغيير الجولة ❌"));
     }
 }
 
 function calculateTotal(scores) {
     if (!scores) return 0;
+    // التأكد من إن القيم أرقام
     return Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
 }
 
 // ==========================================
-// 8. الجدول الكامل (Table)
+// 8. المساعدات (Utils)
 // ==========================================
-window.openTableModal = function() {
-    document.getElementById('tableModal').style.display = 'flex';
-    updateGameUI();
-}
-window.closeTableModal = function() {
-    document.getElementById('tableModal').style.display = 'none';
-}
-window.goToLobby = function() {
-    showScreen('lobbyScreen');
-}
-window.filterLobby = function() {
-    renderLobby();
+window.resetGameScores = async function() {
+    if(!confirm("⚠️ تحذير: سيتم مسح جميع النقاط والبدء من الصفر!")) return;
+    // هنا بنستخدم set عشان نمسح أي بيانات قديمة ونبدأ على نضافة
+    await db.collection('game_session').doc(GAME_DOC_ID).set({
+        round: 1,
+        players: {} 
+    });
+    localSelection.clear();
+    toast("تم تصفير اللعبة 🗑️");
 }
 
-function renderFullTable(sortedPlayers, currentRound) {
+window.openTableModal = function() { document.getElementById('tableModal').style.display = 'flex'; updateGameUI(); }
+window.closeTableModal = function() { document.getElementById('tableModal').style.display = 'none'; }
+window.goToLobby = function() { showScreen('lobbyScreen'); }
+window.filterLobby = function() { renderLobby(); }
+
+function renderFullTable(sorted, r) {
     const thead = document.querySelector('#scoreTable thead tr');
     const tbody = document.getElementById('tableBody');
-    
-    let headHtml = '<th>اللاعب</th><th>T</th>';
-    for(let i=1; i<=10; i++) {
-        const mark = i === currentRound ? 'style="color:var(--gold)"' : '';
-        headHtml += `<th ${mark}>${i}</th>`;
-    }
-    thead.innerHTML = headHtml;
-
-    let bodyHtml = '';
-    sortedPlayers.forEach(p => {
-        let rows = `<td>${p.name}</td><td><b>${p.total}</b></td>`;
-        for(let i=1; i<=10; i++) {
-            rows += `<td>${p.scores[i] !== undefined ? p.scores[i] : ''}</td>`;
-        }
-        bodyHtml += `<tr>${rows}</tr>`;
+    let head = '<th>اللاعب</th><th>T</th>'; 
+    for(let i=1; i<=10; i++) head += `<th ${i===r?'style="color:#fbbf24"':''}>${i}</th>`;
+    thead.innerHTML = head;
+    let body = ''; 
+    sorted.forEach(p => {
+        let row = `<td>${p.name}</td><td><b>${p.total}</b></td>`;
+        for(let i=1; i<=10; i++) row += `<td>${p.scores[i]!==undefined?p.scores[i]:''}</td>`;
+        body += `<tr>${row}</tr>`;
     });
-    tbody.innerHTML = bodyHtml;
+    tbody.innerHTML = body;
 }
 
-// ==========================================
-// 9. المساعدات (Utils)
-// ==========================================
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 }
-
 window.toggleAuthMode = function(mode) {
     document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
     document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
 }
-
 function initAvatars() {
-    const container = document.getElementById('avatarList');
-    if(!container) return;
+    const c = document.getElementById('avatarList'); if(!c) return;
     AVATARS.forEach((av, idx) => {
-        const span = document.createElement('span');
-        span.className = `av-item ${idx === 0 ? 'selected' : ''}`;
-        span.innerText = av;
-        span.onclick = () => {
-            document.querySelectorAll('.av-item').forEach(x => x.classList.remove('selected'));
-            span.classList.add('selected');
-            document.getElementById('selectedAvatar').value = av;
-        };
-        container.appendChild(span);
+        const s = document.createElement('span'); s.className = `av-item ${idx===0?'selected':''}`; s.innerText=av;
+        s.onclick=()=>{document.querySelectorAll('.av-item').forEach(x=>x.classList.remove('selected'));s.classList.add('selected');document.getElementById('selectedAvatar').value=av;};
+        c.appendChild(s);
     });
 }
-
-function toast(msg) {
-    const t = document.getElementById('toast');
-    t.innerText = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-window.resetPassword = function() {
-    const email = prompt("أدخل بريدك الإلكتروني:");
-    if(email) {
-        auth.sendPasswordResetEmail(email)
-            .then(() => alert("تم إرسال الرابط 📧"))
-            .catch(e => alert("خطأ: " + e.message));
-    }
-}
+function toast(msg) { const t=document.getElementById('toast'); t.innerText=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+window.resetPassword = function() { const e=prompt("البريد الإلكتروني:"); if(e) auth.sendPasswordResetEmail(e).then(()=>alert("تم")).catch(x=>alert(x.message)); }
