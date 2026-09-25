@@ -2,11 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1120">
     <title>Phase 10 Ultimate</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    
+
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -15,106 +17,141 @@
 <body>
 
     <div id="appContainer">
-        
+
+        <!-- ============ شاشة الدخول ============ -->
         <section id="authScreen" class="screen active">
             <div class="glass-card center-box">
-                <h1 class="title">👑 Phase 10</h1>
-                <div id="loginForm">
-                    <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" dir="ltr">
-                    <input type="password" id="loginPass" placeholder="كلمة المرور" dir="ltr">
-                    <button id="btnLogin" class="btn-primary">دخول</button>
+                <div class="logo">👑</div>
+                <h1 class="title">Phase 10</h1>
+                <p class="subtitle">سجل السكور وخلّي الخروف يبان 🐑</p>
+                <form id="loginForm" onsubmit="event.preventDefault(); login();">
+                    <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" dir="ltr" autocomplete="email">
+                    <input type="password" id="loginPass" placeholder="كلمة المرور" dir="ltr" autocomplete="current-password">
+                    <button type="submit" id="btnLogin" class="btn-primary">دخول</button>
                     <p class="hint-text" onclick="toggleAuthMode('register')">ليس لديك حساب؟ <span>سجل جديد</span></p>
-                </div>
-                <div id="registerForm" style="display:none;">
-                    <input type="text" id="regName" placeholder="الاسم (اللقب)">
+                </form>
+                <form id="registerForm" style="display:none;" onsubmit="event.preventDefault(); register();">
+                    <input type="text" id="regName" placeholder="الاسم (اللقب)" maxlength="20">
                     <div class="avatar-scroll" id="avatarList"></div>
                     <input type="hidden" id="selectedAvatar" value="🦁">
-                    <input type="email" id="regEmail" placeholder="البريد الإلكتروني" dir="ltr">
-                    <input type="password" id="regPass" placeholder="كلمة المرور" dir="ltr">
-                    <button id="btnRegister" class="btn-success">إنشاء حساب</button>
+                    <input type="email" id="regEmail" placeholder="البريد الإلكتروني" dir="ltr" autocomplete="email">
+                    <input type="password" id="regPass" placeholder="كلمة المرور (6 حروف على الأقل)" dir="ltr" autocomplete="new-password">
+                    <button type="submit" id="btnRegister" class="btn-success">إنشاء حساب</button>
                     <p class="hint-text" onclick="toggleAuthMode('login')">لديك حساب؟ <span>دخول</span></p>
-                </div>
+                </form>
             </div>
         </section>
 
+        <!-- ============ اللوبي ============ -->
         <section id="lobbyScreen" class="screen">
             <header class="top-bar">
                 <div class="profile-badge" onclick="editMyProfile()">
-                    <span id="myAvatar">😎</span> <span id="myName">...</span> <span style="font-size:10px">✏️</span>
+                    <span id="myAvatar" class="big-emoji">😎</span>
+                    <div>
+                        <div id="myName" class="profile-name">...</div>
+                        <div id="myStats" class="profile-stats"></div>
+                    </div>
+                    <span class="edit-hint">✏️</span>
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <button onclick="openFameModal()" class="btn-icon gold-border">🏆</button>
-                    <button id="adminSettingsBtn" onclick="openAdminModal()" class="btn-icon" style="display:none;">⚙️</button>
-                    <button id="btnLogout" class="btn-icon">🚪</button>
+                <div class="top-actions">
+                    <button onclick="openFameModal()" class="btn-icon gold-border" title="لوحة الشرف">🏆</button>
+                    <button id="adminSettingsBtn" onclick="openModal('adminModal')" class="btn-icon" style="display:none;" title="الإعدادات">⚙️</button>
+                    <button id="btnLogout" onclick="logout()" class="btn-icon" title="خروج">🚪</button>
                 </div>
             </header>
 
             <div class="glass-card">
-                <h2 style="color:var(--gold)">غرفة الانتظار 🛋️</h2>
-                
+                <div class="section-head">
+                    <h2>غرفة الانتظار 🛋️</h2>
+                    <span id="lobbyCount" class="pill"></span>
+                </div>
+
                 <div id="returnToGamePanel" style="display:none; margin-bottom:15px;">
-                    <button onclick="showScreen('gameScreen')" class="btn-glass gold-border full-width pulse-anim">↩️ العودة للمباراة الجارية</button>
+                    <button onclick="showScreen('gameScreen')" class="btn-glass gold-border full-width pulse-anim">↩️ العودة للمباراة الجارية <span id="returnRoundInfo"></span></button>
                 </div>
 
                 <div id="adminQuickControls" class="admin-panel" style="display:none;">
-                    <button id="mainGameBtn" onclick="handleGameBtn()" class="btn-success">⚽ بدء المباراة</button>
-                    <p style="font-size:12px; color:#aaa; margin-top:5px; text-align:center;">حدد اللاعبين للدخول 👇</p>
+                    <button id="mainGameBtn" onclick="handleGameBtn()" class="btn-success full-width">⚽ بدء المباراة</button>
+                    <p class="hint-small">اضغط على اللاعبين عشان تدخلهم الملعب 👇</p>
                 </div>
-                
-                <div class="player-list-container">
-                    <div id="lobbyPlayersList" class="grid-list"></div>
-                </div>
+
+                <div id="lobbyPlayersList" class="grid-list"></div>
             </div>
         </section>
 
+        <!-- ============ الملعب ============ -->
         <section id="gameScreen" class="screen">
             <header class="game-header">
+                <button onclick="showScreen('lobbyScreen')" class="btn-icon" title="اللوبي">🏠</button>
                 <div class="round-control">
-                    <button id="btnPrevRound" class="nav-btn" style="display:none;">❮</button>
-                    <div class="round-info"><span>الجولة</span><span id="currentRoundDisplay">1</span></div>
-                    <button id="btnNextRound" class="nav-btn" style="display:none;">❯</button>
+                    <button id="btnPrevRound" class="nav-btn admin-only" onclick="changeRound(-1)" title="الجولة اللي فاتت">❯</button>
+                    <div class="round-info"><span>الجولة</span><span id="currentRoundDisplay">1</span><span class="of">/ 10</span></div>
+                    <button id="btnNextRound" class="nav-btn admin-only" onclick="changeRound(1)" title="الجولة الجاية">❮</button>
                 </div>
-                <div class="header-actions">
-                    <button onclick="goToLobby()" class="btn-glass warning">🏠</button>
-                </div>
+                <button onclick="openTableModal()" class="btn-icon" title="الجدول">📊</button>
             </header>
 
-            <div class="glass-panel" style="margin-bottom:15px; display:flex; gap:5px;">
-                <button onclick="openTableModal()" class="btn-glass" style="flex:1">📊 الترتيب</button>
-                <button onclick="randomSkip()" class="btn-glass" style="flex:1; border-color:var(--danger); color:var(--danger)">🎲 سكيب عشوائي</button>
+            <div class="round-dots" id="roundDots"></div>
+
+            <div class="phase-desc">
+                <div class="phase-label">المطلوب في الجولة دي</div>
+                <div id="roundPhaseDesc">--</div>
             </div>
 
-            <div id="roundPhaseDesc" class="phase-desc">-- المطلوب --</div>
+            <div id="roundProgress" class="round-progress"></div>
+
             <div id="gamePlayersContainer" class="cards-container"></div>
-            
-            <div id="adminEndGamePanel" style="margin-top:20px; display:none;">
-                <button onclick="finishGameAndArchive()" class="btn-danger-outline full-width">💾 إنهاء المباراة وحفظ الألقاب</button>
+
+            <div class="game-footer">
+                <button onclick="randomSkip()" class="btn-glass danger-outline">🎲 سكيب عشوائي</button>
+                <button id="adminEndGameBtn" onclick="finishGameAndArchive()" class="btn-danger-outline admin-only">💾 إنهاء المباراة</button>
             </div>
         </section>
 
     </div>
 
+    <!-- ============ المودالز ============ -->
     <div id="fullTableModal" class="modal">
         <div class="modal-content table-modal">
-            <div class="modal-header"><h3>📊 الجدول الكامل</h3><button onclick="document.getElementById('fullTableModal').style.display='none'" class="close-btn">✕</button></div>
+            <div class="modal-header"><h3>📊 الجدول الكامل</h3><button onclick="closeModal('fullTableModal')" class="close-btn">✕</button></div>
             <div class="table-scroll"><table id="scoreTable"><thead><tr></tr></thead><tbody id="tableBody"></tbody></table></div>
+            <p class="hint-small">الأخضر = أقل سكور في الجولة • ⚖️ = نقاط تعويض لما لاعب دخل متأخر</p>
         </div>
     </div>
 
     <div id="fameModal" class="modal">
         <div class="modal-content table-modal">
-            <div class="modal-header"><h3 style="color:var(--gold)">🏆 لوحة الشرف</h3><button onclick="document.getElementById('fameModal').style.display='none'" class="close-btn">✕</button></div>
+            <div class="modal-header"><h3 style="color:var(--gold)">🏆 لوحة الشرف</h3><button onclick="closeModal('fameModal')" class="close-btn">✕</button></div>
             <div id="fameList" class="grid-list"></div>
+        </div>
+    </div>
+
+    <div id="calcModal" class="modal sheet">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="calcTitle">🧮 احسب ورقك</h3><button onclick="closeModal('calcModal')" class="close-btn">✕</button></div>
+            <div class="calc-total"><span id="calcSum">0</span><small id="calcBreakdown">اضغط على الكروت اللي فاضلة في إيدك</small></div>
+            <div class="calc-grid">
+                <button class="calc-btn" onclick="calcAdd(5,'1-9')"><b>1 - 9</b><small>5 نقط</small></button>
+                <button class="calc-btn" onclick="calcAdd(10,'10-12')"><b>10 - 12</b><small>10 نقط</small></button>
+                <button class="calc-btn skip" onclick="calcAdd(15,'Skip')"><b>Skip</b><small>15 نقطة</small></button>
+                <button class="calc-btn wild" onclick="calcAdd(25,'Wild')"><b>Wild</b><small>25 نقطة</small></button>
+            </div>
+            <div class="calc-actions">
+                <button class="btn-glass" onclick="calcUndo()">↩️ تراجع</button>
+                <button class="btn-glass" onclick="calcSaveZero()">🎉 خلّصت (0)</button>
+                <button class="btn-success" onclick="calcSave()">✅ حفظ</button>
+            </div>
         </div>
     </div>
 
     <div id="adminModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>⚙️ إعدادات الإدارة</h3><button onclick="document.getElementById('adminModal').style.display='none'" class="close-btn">✕</button></div>
+            <div class="modal-header"><h3>⚙️ إعدادات الإدارة</h3><button onclick="closeModal('adminModal')" class="close-btn">✕</button></div>
             <div class="settings-list">
                 <button onclick="openTransferAdmin()" class="btn-glass">🔑 نقل الأدمن</button>
                 <button onclick="openManagePlayers()" class="btn-glass">👥 إدارة اللاعبين (حذف/تعديل)</button>
-                <hr style="border-color:#333; margin:10px 0;">
+                <button onclick="cancelCurrentGame()" class="btn-glass">🧹 إلغاء المباراة الحالية (بدون حفظ)</button>
+                <hr>
                 <button onclick="resetGameCompletely()" class="btn-danger-outline">☢️ تصفير المصنع (مسح كل شيء)</button>
             </div>
         </div>
@@ -122,44 +159,36 @@
 
     <div id="subModal" class="modal">
         <div class="modal-content">
-            <h3>🔄 تبديل لاعب</h3>
+            <div class="modal-header"><h3>🔄 تبديل لاعب</h3><button onclick="closeModal('subModal')" class="close-btn">✕</button></div>
             <div id="subCandidatesList" class="grid-list"></div>
-            <button onclick="document.getElementById('subModal').style.display='none'" class="btn-glass full-width">إلغاء</button>
+            <button onclick="removeFromGame()" class="btn-danger-outline full-width" style="margin-top:10px;">🚪 إخراج اللاعب من المباراة</button>
         </div>
     </div>
 
     <div id="skipModal" class="modal center-modal">
         <div class="modal-content text-center">
-            <div style="font-size:60px">🤡</div>
+            <div class="skip-emoji">🤡</div>
             <h2 id="skipTargetName" style="color:var(--danger)"></h2>
-            <p id="skipComment" style="font-size:18px; color:#aaa;"></p>
-            <button onclick="document.getElementById('skipModal').style.display='none'" class="btn-primary full-width">حبيبي ولا يهمك 😂</button>
+            <p id="skipComment" class="skip-comment"></p>
+            <button onclick="closeModal('skipModal')" class="btn-primary full-width">حبيبي ولا يهمك 😂</button>
         </div>
     </div>
 
     <div id="transferAdminModal" class="modal">
         <div class="modal-content">
-            <h3>🔑 اختر الأدمن الجديد</h3>
+            <div class="modal-header"><h3>🔑 اختر الأدمن الجديد</h3><button onclick="closeModal('transferAdminModal')" class="close-btn">✕</button></div>
             <div id="adminCandidatesList" class="grid-list"></div>
-            <button onclick="document.getElementById('transferAdminModal').style.display='none'" class="btn-glass full-width">إلغاء</button>
         </div>
     </div>
 
     <div id="managePlayersModal" class="modal">
         <div class="modal-content">
-            <h3>👥 حذف/تعديل اللاعبين</h3>
+            <div class="modal-header"><h3>👥 حذف/تعديل اللاعبين</h3><button onclick="closeModal('managePlayersModal')" class="close-btn">✕</button></div>
             <div id="manageList" class="grid-list"></div>
-            <button onclick="document.getElementById('managePlayersModal').style.display='none'" class="btn-glass full-width">إغلاق</button>
         </div>
     </div>
 
-    <audio id="soundLion" src="https://www.myinstants.com/media/sounds/lion-roar.mp3"></audio>
-    <audio id="soundSheep" src="https://www.myinstants.com/media/sounds/goat-scream.mp3"></audio>
-    <audio id="soundSkip" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
-
-    <div id="toast" class="toast"></div>
-    <script src="script.js"></script>
-<div id="certModal" class="modal center-modal" style="z-index: 3000;">
+    <div id="certModal" class="modal center-modal" style="z-index: 3000;">
         <div id="certCard" class="cert-card">
             <div class="cert-header">
                 <span id="certIcon" style="font-size:50px;">🦁</span>
@@ -168,17 +197,21 @@
             <div class="cert-body">
                 <p id="certText" class="cert-text"></p>
                 <div class="cert-witnesses">
-                    <span>على رقاب كل من:</span>
-                    <p id="certList" style="color:#aaa; font-size:12px; margin-top:5px;"></p>
+                    <span id="certListLabel">على رقاب كل من:</span>
+                    <p id="certList"></p>
                 </div>
                 <div class="cert-date" id="certDate"></div>
             </div>
             <div class="cert-footer">
                 <button id="nextCertBtn" class="btn-primary full-width">عرض شهادة الخروف 🐑</button>
-                <button id="closeCertBtn" onclick="closeCert()" class="btn-glass full-width" style="display:none; margin-top:10px;">إغلاق</button>
+                <button id="closeCertBtn" onclick="closeCert()" class="btn-glass cert-close full-width" style="display:none; margin-top:10px;">إغلاق</button>
             </div>
         </div>
     </div>
+
+    <audio id="soundLion" preload="none" src="https://www.myinstants.com/media/sounds/lion-roar.mp3"></audio>
+    <audio id="soundSheep" preload="none" src="https://www.myinstants.com/media/sounds/goat-scream.mp3"></audio>
+    <audio id="soundSkip" preload="none" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
 
     <div id="toast" class="toast"></div>
     <script src="script.js"></script>
