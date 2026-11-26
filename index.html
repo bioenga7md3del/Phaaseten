@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@300;400;500;600;700&family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261126b">
+    <link rel="stylesheet" href="style.css?v=20261126c">
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -208,6 +208,19 @@
     </div>
 
     <!-- ================= شيت عام (تبديل / نقل أدمن) ================= -->
+    <!-- ================= تعديل البروفايل ================= -->
+    <div id="profileSheet" class="sheet">
+        <div class="sheet-body">
+            <div class="grabber"></div>
+            <h3 class="sheet-title">✏️ عدّل بروفايلك</h3>
+            <div class="pf-preview"><div class="avatar-xl" id="pfAvatar">😎</div></div>
+            <label class="field"><span>اسمك في اللعبة</span><input type="text" id="pfName" maxlength="20" autocomplete="nickname"></label>
+            <div class="field-label" style="margin-top:14px">اختار الإيموجي بتاعك</div>
+            <div class="avatar-grid pf-grid" id="pfAvatarList"></div>
+            <button class="btn btn-primary btn-lg" style="margin-top:16px" onclick="saveProfile()">حفظ ✓</button>
+        </div>
+    </div>
+
     <div id="pickSheet" class="sheet">
         <div class="sheet-body">
             <div class="grabber"></div>
@@ -295,6 +308,6 @@
     <audio id="soundSkip" preload="none" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="script.js?v=20261126b"></script>
+    <script src="script.js?v=20261126c"></script>
 </body>
 </html>

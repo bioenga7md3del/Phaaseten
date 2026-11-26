@@ -23,7 +23,8 @@ const gameRef = () => db.collection('game_session').doc(GAME_DOC_ID);
 const EMPTY_GAME = () => ({ round: 1, players: {}, state: 'active' });
 const TOTAL_ROUNDS = 10;
 
-const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🦊", "🐺", "🦅", "🐙", "🦈", "🐲", "🧔", "👑", "🔥", "⚡"];
+const AVATARS = ["🦁", "🐯", "🐻", "🐼", "🐨", "🐸", "🐔", "🦄", "🐉", "👽", "🤖", "🤠", "😎", "👻", "🦊", "🐺", "🦅", "🐙", "🦈", "🐲", "🧔", "👑", "🔥", "⚡",
+    "🐵", "🐷", "🐮", "🐰", "🐧", "🦉", "🐢", "🐊", "🦖", "🦍", "🐝", "🦋", "😂", "🤓", "🥸", "🤡", "😈", "💀", "🥷", "🧙", "🧛", "🕵️", "👨‍🚀", "🧑‍🍳", "🍕", "🌶️", "🍉", "☕", "🎯", "🎩", "🃏", "🚀", "💎", "🌚"];
 const PHASES = [
     "2 مجموعات (3)", "مجموعة (3) + تسلسل (4)", "مجموعة (4) + تسلسل (4)", "تسلسل (7)",
     "تسلسل (8)", "تسلسل (9)", "2 مجموعات (4)", "7 كروت لون واحد",
@@ -139,12 +140,43 @@ async function register() {
     }
 }
 
-window.editMyProfile = async function () {
-    const newName = await askInput({ emoji: '✏️', title: 'غيّر اسمك', value: currentUser.name });
-    if (newName && newName.trim()) {
-        await db.collection('users').doc(currentUser.uid).update({ name: newName.trim().slice(0, 20) });
-        toast("تم تغيير الاسم ✅");
-    }
+let pfSelected = null;
+window.editMyProfile = function () {
+    pfSelected = currentUser.avatar || AVATARS[0];
+    $('pfName').value = currentUser.name || '';
+    $('pfAvatar').innerText = pfSelected;
+    const grid = $('pfAvatarList');
+    grid.innerHTML = '';
+    AVATARS.forEach(a => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `av ${a === pfSelected ? 'selected' : ''}`;
+        b.innerText = a;
+        b.onclick = () => {
+            pfSelected = a;
+            grid.querySelectorAll('.av').forEach(x => x.classList.toggle('selected', x === b));
+            const p = $('pfAvatar'); p.innerText = a;
+            p.classList.remove('boing'); void p.offsetWidth; p.classList.add('boing');
+            haptic();
+        };
+        grid.appendChild(b);
+    });
+    openSheet('profileSheet');
+};
+
+window.saveProfile = async function () {
+    const name = $('pfName').value.trim().slice(0, 20);
+    if (!name) return toast("اكتب اسمك الأول");
+    const upd = {};
+    if (name !== currentUser.name) upd.name = name;
+    if (pfSelected && pfSelected !== currentUser.avatar) upd.avatar = pfSelected;
+    closeSheet('profileSheet');
+    if (!Object.keys(upd).length) return;
+    try {
+        await db.collection('users').doc(currentUser.uid).update(upd);
+        toast(upd.avatar ? `شكلك الجديد ${upd.avatar} ✅` : "تم تغيير الاسم ✅");
+        haptic(20);
+    } catch (e) { console.error(e); toast("الحفظ فشل ❌"); }
 };
 
 window.logout = async function () {

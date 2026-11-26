@@ -636,3 +636,9 @@ input:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255,207,90,.
 .fame-pts.neg { color: var(--ruby); background: rgba(255,77,109,.14); }
 .winbar.neg i { background: linear-gradient(90deg, #ff4d6d, #ff8a9e); }
 .fame-rule { margin-bottom: 34px; }
+
+/* تعديل البروفايل */
+.pf-preview { display: flex; justify-content: center; margin: 4px 0 16px; }
+.pf-preview .avatar-xl { width: 84px; height: 84px; font-size: 48px; border-radius: 24px; }
+.pf-grid { max-height: 34dvh; overflow-y: auto; padding: 4px; }
+.boing { animation: boing .45s var(--ease); }
