@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // قفل الشيتات والمودالز لما تدوس برا
     document.querySelectorAll('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeSheet(s.id); }));
-    $('skipModal').addEventListener('click', e => { if (e.target.id === 'skipModal') closeModal('skipModal'); });
+    $('skipModal').addEventListener('click', e => { if (e.target.id === 'skipModal' && !wheelSpinning) closeModal('skipModal'); });
     document.addEventListener('keydown', e => {
         if ($('scoreSheet').classList.contains('open')) {
             if (/^[0-9]$/.test(e.key)) ssKey(e.key);
@@ -430,15 +430,82 @@ function stableComment(type, uid, round) {
     return list[h % list.length];
 }
 
+// ---------- عجلة السكيب ----------
+const WHEEL_COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6', '#d946ef', '#84cc16', '#f97316'];
+let wheelSpinning = false;
+
+function drawWheel(names, rot) {
+    const cv = $('skipWheel'), ctx = cv.getContext('2d');
+    const W = cv.width, c = W / 2, R = c - 6, n = names.length, seg = (Math.PI * 2) / n;
+    const font = getComputedStyle(document.body).fontFamily;
+    ctx.clearRect(0, 0, W, W);
+    for (let i = 0; i < n; i++) {
+        // الشريحة i تبدأ من فوق (-90°) وتلف مع عقارب الساعة
+        const a0 = rot - Math.PI / 2 + i * seg;
+        ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, a0, a0 + seg); ctx.closePath();
+        let ci = i % WHEEL_COLORS.length;
+        if (n > 1 && i === n - 1 && ci === 0) ci = 1; // ما تبقاش آخر شريحة بنفس لون الأولى
+        ctx.fillStyle = WHEEL_COLORS[ci];
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 3; ctx.stroke();
+        // الاسم
+        ctx.save();
+        const mid = a0 + seg / 2;
+        const flip = Math.cos(mid) < 0; // في النص الشمال من العجلة نقلب الكلام عشان ما يبقاش بالمقلوب
+        ctx.translate(c, c); ctx.rotate(flip ? mid + Math.PI : mid);
+        ctx.direction = 'rtl'; ctx.textAlign = flip ? 'left' : 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+        const fs = Math.max(18, Math.min(34, 260 / n + 8));
+        ctx.font = `700 ${fs}px ${font}`;
+        ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 4;
+        let label = names[i];
+        const maxW = R - 70;
+        while (ctx.measureText(label).width > maxW && label.length > 2) label = label.slice(0, -1);
+        if (label !== names[i]) label += '…';
+        ctx.fillText(label, flip ? -(R - 18) : R - 18, 0);
+        ctx.restore();
+    }
+}
+
 window.randomSkip = function () {
+    if (wheelSpinning) return;
     const c = Object.keys(gameData.players || {}).filter(uid => uid !== currentUser.uid && usersCache[uid]);
     if (!c.length) return toast("مفيش حد غيرك!");
-    const v = c[Math.floor(Math.random() * c.length)];
-    $('skipTargetName').innerText = usersCache[v].name;
-    $('skipComment').innerText = SKIP_COMMENTS[Math.floor(Math.random() * SKIP_COMMENTS.length)];
+    const labels = c.map(uid => `${usersCache[uid].avatar || ''} ${usersCache[uid].name}`.trim());
+    const n = c.length, seg = (Math.PI * 2) / n;
+    const winner = Math.floor(Math.random() * n);
+
+    // الزاوية اللي توقّف نص شريحة الفائز (مع شوية عشوائية جوه الشريحة) تحت السهم
+    const jitter = (Math.random() - 0.5) * seg * 0.7;
+    const target = (Math.PI * 2) * (6 + Math.floor(Math.random() * 3)) - (winner * seg + seg / 2 + jitter);
+    const duration = 5200 + Math.random() * 1200;
+
+    $('skipResult').classList.remove('show');
+    $('skipCloseBtn').disabled = true;
+    drawWheel(labels, 0);
     openModal('skipModal');
-    playSound('soundSkip');
-    haptic([30, 40, 30]);
+    wheelSpinning = true;
+
+    const ease = t => 1 - Math.pow(1 - t, 4);
+    let start = null, lastSeg = -1;
+    const frame = ts => {
+        if (start === null) start = ts;
+        const t = Math.min(1, (ts - start) / duration);
+        const rot = target * ease(t);
+        drawWheel(labels, rot);
+        // تكتكة مع كل شريحة بتعدي تحت السهم
+        const under = Math.floor((((-rot) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / seg);
+        if (under !== lastSeg) { lastSeg = under; haptic(4); }
+        if (t < 1) return requestAnimationFrame(frame);
+        wheelSpinning = false;
+        $('skipTargetName').innerText = usersCache[c[winner]].name;
+        $('skipComment').innerText = SKIP_COMMENTS[Math.floor(Math.random() * SKIP_COMMENTS.length)];
+        $('skipResult').classList.add('show');
+        $('skipCloseBtn').disabled = false;
+        playSound('soundSkip');
+        haptic([30, 40, 30]);
+        fireConfetti(60);
+    };
+    requestAnimationFrame(frame);
 };
 
 // ==========================================

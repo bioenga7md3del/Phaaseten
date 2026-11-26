@@ -218,11 +218,18 @@
     <!-- ================= السكيب ================= -->
     <div id="skipModal" class="modal">
         <div class="modal-card skip-card">
-            <div class="skip-emoji">🤡</div>
-            <div class="skip-label">السكيب راح لـ</div>
-            <h2 id="skipTargetName"></h2>
-            <p id="skipComment"></p>
-            <button onclick="closeModal('skipModal')" class="btn btn-primary btn-lg">حبيبي ولا يهمك 😂</button>
+            <div class="skip-label">🎡 عجلة السكيب</div>
+            <div class="wheel-wrap">
+                <div class="wheel-pointer"></div>
+                <canvas id="skipWheel" width="600" height="600"></canvas>
+                <div class="wheel-hub">🎲</div>
+            </div>
+            <div id="skipResult" class="skip-result">
+                <div class="skip-label">السكيب راح لـ</div>
+                <h2 id="skipTargetName"></h2>
+                <p id="skipComment"></p>
+            </div>
+            <button id="skipCloseBtn" onclick="closeModal('skipModal')" class="btn btn-primary btn-lg">حبيبي ولا يهمك 😂</button>
         </div>
     </div>
 
