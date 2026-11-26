@@ -629,3 +629,9 @@ input:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255,207,90,.
 @keyframes slamL { from { opacity: 0; transform: translateX(60px) rotate(12deg) scale(.6); } to { opacity: 1; transform: none; } }
 @keyframes slamR { from { opacity: 0; transform: translateX(-60px) rotate(-12deg) scale(.6); } to { opacity: 1; transform: none; } }
 @keyframes roarShake { 25% { transform: scale(1.15) rotate(-6deg); } 50% { transform: scale(1.2) rotate(6deg); } 75% { transform: scale(1.1) rotate(-3deg); } }
+
+/* نقاط لوحة الشرف */
+.fame-rule { text-align: center; margin-top: 4px; }
+.fame-pts { font-family: var(--num); font-weight: 800; font-size: 13px; color: var(--gold); background: rgba(255,207,90,.14); padding: 1px 8px; border-radius: 99px; }
+.fame-pts.neg { color: var(--ruby); background: rgba(255,77,109,.14); }
+.winbar.neg i { background: linear-gradient(90deg, #ff4d6d, #ff8a9e); }

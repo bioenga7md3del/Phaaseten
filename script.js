@@ -630,31 +630,42 @@ function renderTable() {
 // ==========================================
 // 9. لوحة الشرف
 // ==========================================
+// نقاط لوحة الشرف: أسد +3 • نمر +1 • معزة −1 • خروف −3
+const FAME_POINTS = { lion: 3, tiger: 1, goat: -1, sheep: -3 };
+function famePoints(u) {
+    return (u.lionCount || 0) * FAME_POINTS.lion + (u.tigerCount || 0) * FAME_POINTS.tiger
+        + (u.goatCount || 0) * FAME_POINTS.goat + (u.sheepCount || 0) * FAME_POINTS.sheep;
+}
+const signed = n => (n > 0 ? '+' : '') + n;
+
 function renderFame() {
-    const users = Object.entries(usersCache).map(([uid, u]) => ({ uid, ...u }))
-        .sort((a, b) => (b.lionCount || 0) - (a.lionCount || 0) || (b.tigerCount || 0) - (a.tigerCount || 0)
-            || (a.sheepCount || 0) - (b.sheepCount || 0) || (b.gamesPlayed || 0) - (a.gamesPlayed || 0));
+    const users = Object.entries(usersCache).map(([uid, u]) => ({ uid, ...u, pts: famePoints(u) }))
+        .sort((a, b) => b.pts - a.pts || (b.lionCount || 0) - (a.lionCount || 0)
+            || (a.sheepCount || 0) - (b.sheepCount || 0) || (a.gamesPlayed || 0) - (b.gamesPlayed || 0)
+            || (a.name || '').localeCompare(b.name || '', 'ar'));
 
     const pod = $('famePodium');
     if (users.length >= 3) {
         const slot = (u, place) => `<div class="pod p${place}">
             <div class="pod-avatar">${esc(u.avatar)}<span class="pod-badge">${['', '🥇', '🥈', '🥉'][place]}</span></div>
             <div class="pod-name">${esc(u.name)}</div>
-            <div class="pod-block"><b>${u.lionCount || 0}</b><small>🦁</small></div></div>`;
+            <div class="pod-block"><b dir="ltr">${signed(u.pts)}</b><small>نقطة</small></div></div>`;
         pod.innerHTML = slot(users[1], 2) + slot(users[0], 1) + slot(users[2], 3);
         pod.hidden = false;
     } else pod.hidden = true;
 
+    const maxPts = Math.max(1, ...users.map(u => Math.abs(u.pts)));
     $('fameList').innerHTML = users.map((u, i) => {
         const g = u.gamesPlayed || 0;
         const wr = g ? Math.round(((u.lionCount || 0) / g) * 100) : 0;
+        const bar = Math.round((Math.abs(u.pts) / maxPts) * 100);
         return `<div class="row ${u.uid === currentUser.uid ? 'me' : ''}">
             <div class="pos">${i + 1}</div>
             <div class="avatar">${esc(u.avatar)}</div>
             <div class="row-main">
-                <div class="row-title">${esc(u.name)}</div>
+                <div class="row-title">${esc(u.name)} <span class="fame-pts ${u.pts < 0 ? 'neg' : ''}" dir="ltr">${signed(u.pts)}</span></div>
                 <div class="row-sub">${g} ماتش • فوز ${wr}%</div>
-                <div class="winbar"><i style="width:${wr}%"></i></div>
+                <div class="winbar ${u.pts < 0 ? 'neg' : ''}"><i style="width:${bar}%"></i></div>
             </div>
             <div class="fame-stats">
                 <span>🦁<b>${u.lionCount || 0}</b></span><span>🐯<b>${u.tigerCount || 0}</b></span>
