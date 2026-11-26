@@ -129,7 +129,7 @@ async function register() {
         const cred = await auth.createUserWithEmailAndPassword(email, pass);
         await db.collection('users').doc(cred.user.uid).set({
             name, avatar, email, isAdmin: false,
-            gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0,
+            gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0, fpts: 0,
             createdAt: FV.serverTimestamp()
         });
         await loadUserData(cred.user.uid);
@@ -198,6 +198,7 @@ function setupRealtimeListeners() {
             currentUser = { uid: currentUser.uid, ...usersCache[currentUser.uid] };
             applyUserUI();
         }
+        migrateFamePoints();
         renderAll();
     }));
 
@@ -750,9 +751,45 @@ function renderTable() {
 // والترتيب بالمعدل (النقاط ÷ عدد الماتشات) عشان اللي لعب كتير ما ياخدش ميزة لمجرد إنه لعب كتير
 const FAME_POINTS = { lion: 2, tiger: 1, goat: -1, sheep: -2 };
 const FAME_MIN_GAMES = 10; // أقل من كده = لسه تحت التقييم وبيترتب بعد الباقيين
-function famePoints(u) {
+// نقاط الماتشات القديمة (قبل نظام المراكز) محسوبة من الألقاب
+function legacyFamePoints(u) {
     return (u.lionCount || 0) * FAME_POINTS.lion + (u.tigerCount || 0) * FAME_POINTS.tiger
         + (u.goatCount || 0) * FAME_POINTS.goat + (u.sheepCount || 0) * FAME_POINTS.sheep;
+}
+// fpts = رصيد النقاط المتخزن (رصيد البداية من الألقاب + نقاط المراكز من الماتشات الجديدة)
+function famePoints(u) { return typeof u.fpts === 'number' ? u.fpts : legacyFamePoints(u); }
+
+// نقاط المركز: الأول +2 والأخير −2 والباقي بالتدريج، والمتعادلين ياخدوا متوسط مراكزهم
+const PLACE_MAX = 2;
+function placementPoints(sorted) {
+    const n = sorted.length, out = {};
+    if (n < 2) return out;
+    const lin = i => PLACE_MAX - (2 * PLACE_MAX * i) / (n - 1);
+    let i = 0;
+    while (i < n) {
+        let j = i;
+        while (j + 1 < n && sorted[j + 1].total === sorted[i].total) j++;
+        let sum = 0;
+        for (let k = i; k <= j; k++) sum += lin(k);
+        const avg = Math.round((sum / (j - i + 1)) * 100) / 100;
+        for (let k = i; k <= j; k++) out[sorted[k].uid] = avg;
+        i = j + 1;
+    }
+    return out;
+}
+
+// مرة واحدة: نحفظ رصيد البداية من الألقاب لكل لاعب ملوش fpts (بيحصل من جهاز الأدمن)
+let fptsMigrated = false;
+async function migrateFamePoints() {
+    if (fptsMigrated || !currentUser?.isAdmin) return;
+    const missing = Object.entries(usersCache).filter(([, u]) => typeof u.fpts !== 'number');
+    fptsMigrated = true;
+    if (!missing.length) return;
+    try {
+        const b = db.batch();
+        missing.forEach(([uid, u]) => b.update(db.collection('users').doc(uid), { fpts: legacyFamePoints(u) }));
+        await b.commit();
+    } catch (e) { console.error('fpts migration', e); fptsMigrated = false; }
 }
 const signed = (n, d = 0) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(d);
 
@@ -789,7 +826,7 @@ function renderFame() {
             <div class="avatar">${esc(u.avatar)}</div>
             <div class="row-main">
                 <div class="row-title">${esc(u.name)} <span class="fame-pts ${u.avg < 0 ? 'neg' : ''}" dir="ltr">${signed(u.avg, 2)}</span></div>
-                <div class="row-sub">${signed(u.pts)} نقطة • ${u.g} ماتش • فوز ${wr}%</div>
+                <div class="row-sub">${signed(u.pts, Number.isInteger(u.pts) ? 0 : 1)} نقطة • ${u.g} ماتش • فوز ${wr}%</div>
                 <div class="winbar ${u.avg < 0 ? 'neg' : ''}"><i style="width:${bar}%"></i></div>
             </div>
             <div class="fame-stats">
@@ -888,7 +925,7 @@ window.resetGameCompletely = async function () {
     const b = db.batch();
     b.set(gameRef(), EMPTY_GAME());
     const snap = await db.collection('users').get();
-    snap.forEach(d => b.update(d.ref, { gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0 }));
+    snap.forEach(d => b.update(d.ref, { gamesPlayed: 0, lionCount: 0, tigerCount: 0, goatCount: 0, sheepCount: 0, fpts: 0 }));
     await b.commit();
     prevRanks = { lion: null, sheep: null };
     toast("تم التصفير ☢️");
@@ -909,8 +946,13 @@ window.finishGameAndArchive = async function () {
     if (!ok) return;
     const n = sorted.length, lion = sorted[0], sheep = sorted[n - 1];
     const b = db.batch();
+    const placePts = placementPoints(sorted);
     sorted.forEach((p, i) => {
         const upd = { gamesPlayed: FV.increment(1) };
+        const u = usersCache[p.uid] || {};
+        const add = placePts[p.uid] || 0;
+        // لو لسه ملوش رصيد متخزن نبدأه من الألقاب القديمة + نقاط الماتش ده
+        upd.fpts = typeof u.fpts === 'number' ? FV.increment(add) : Math.round((legacyFamePoints(u) + add) * 100) / 100;
         const rank = rankOf(i, n);
         if (rank && rank !== 'normal') upd[`${rank}Count`] = FV.increment(1);
         b.update(db.collection('users').doc(p.uid), upd);
