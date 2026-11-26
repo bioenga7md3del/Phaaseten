@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-    <meta name="theme-color" content="#07080f">
+    <meta name="theme-color" content="#0f2a22">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,7 +12,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@300;400;500;600;700&family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -31,7 +31,7 @@
                     <span class="pc c1">7</span><span class="pc c2">10</span><span class="pc c3">W</span>
                 </div>
                 <h1 class="brand">Phase <b>10</b></h1>
-                <p class="tagline">سجّل السكور… وخلّي الخروف يبان 🐑</p>
+                <p class="tagline">سجّل السكور… والخروف هيبان لوحده 🐑</p>
             </div>
 
             <div class="panel auth-panel">
@@ -121,7 +121,7 @@
         <div id="gamePlayersContainer" class="list"></div>
 
         <div class="game-actions">
-            <button onclick="randomSkip()" class="btn btn-ghost">🎲 سكيب عشوائي</button>
+            <button onclick="randomSkip()" class="btn btn-ghost">🎡 عجلة السكيب</button>
             <button onclick="finishGameAndArchive()" class="btn btn-danger-soft admin-only">🏁 إنهاء المباراة</button>
         </div>
     </section>
@@ -231,6 +231,31 @@
                 <p id="skipComment"></p>
             </div>
             <button id="skipCloseBtn" onclick="closeModal('skipModal')" class="btn btn-primary btn-lg">حبيبي ولا يهمك 😂</button>
+        </div>
+    </div>
+
+    <!-- ================= نتيجة الجولة (الأسد والخروف) ================= -->
+    <div id="roundModal" class="modal round-modal">
+        <div class="modal-card round-card">
+            <div class="rr-title" id="rrTitle">نتيجة الجولة</div>
+            <div class="rr-duo">
+                <div class="rr-slot lion" id="rrLion">
+                    <div class="rr-tag">🦁 الأسد</div>
+                    <div class="rr-ava" id="rrLionAva"></div>
+                    <b id="rrLionName"></b>
+                    <small id="rrLionTotal"></small>
+                    <p id="rrLionLine"></p>
+                </div>
+                <div class="rr-vs">VS</div>
+                <div class="rr-slot sheep" id="rrSheep">
+                    <div class="rr-tag">🐑 الخروف</div>
+                    <div class="rr-ava" id="rrSheepAva"></div>
+                    <b id="rrSheepName"></b>
+                    <small id="rrSheepTotal"></small>
+                    <p id="rrSheepLine"></p>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-lg" onclick="closeModal('roundModal')">كمّل يا معلم 🃏</button>
         </div>
     </div>
 

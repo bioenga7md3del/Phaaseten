@@ -36,6 +36,8 @@ const FUNNY_COMMENTS = {
     sheep: ["ملك البرسيم 🌿", "يا فضيحتك 🐑", "حد يطلب الاسعاف 😂", "المركز الأخير بجدارة", "صوتك عالي ليه؟"],
     normal: ["ركز في ورقك 🃏", "العب بذكاء", "لسه فيها أمل", "اصحى للكلام"]
 };
+const ROUND_LION_LINES = ["زئير يرج الترابيزة 🦁", "الملك ما بيتكلمش… بيكسب", "كله ورا الأسد يا شباب", "لسه الليلة طويلة… وأنا فوق", "خدوا بالكم، الأسد جعان"];
+const ROUND_SHEEP_LINES = ["ماااااء 🐑 حد يلحقه", "البرسيم في الطريق 🌿", "الخروف بتاعنا وصل الحظيرة", "شد حيلك… أو كُل عشب", "ماااء… بيقول هيعوّضها الجولة الجاية"];
 const SKIP_COMMENTS = ["لبس السكيب 😂", "حظه وحش أوي 🌚", "خدلك بريك ☕", "تتعوض 😜"];
 const RANK_BADGE = { lion: '🦁', tiger: '🐯', goat: '🐐', sheep: '🐑' };
 const RANK_NAME = { lion: 'الأسد', tiger: 'النمر', goat: 'المعزة', sheep: 'الخروف' };
@@ -67,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // قفل الشيتات والمودالز لما تدوس برا
     document.querySelectorAll('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeSheet(s.id); }));
+    $('roundModal').addEventListener('click', e => { if (e.target.id === 'roundModal') closeModal('roundModal'); });
     $('skipModal').addEventListener('click', e => { if (e.target.id === 'skipModal' && !wheelSpinning) closeModal('skipModal'); });
     document.addEventListener('keydown', e => {
         if ($('scoreSheet').classList.contains('open')) {
@@ -172,6 +175,7 @@ function setupRealtimeListeners() {
         if (!doc.exists) return;
         gameData = doc.data();
         if (!gameData.players) gameData.players = {};
+        gameLoaded = true;
         renderAll();
         onSkipSpinUpdate(gameData.skipSpin);
         if (gameData.state === 'finished' && gameData.finalResults) {
@@ -311,10 +315,13 @@ function renderGame() {
     // إعلانات
     if (n >= 2) {
         const lion = sorted[0].uid, sheep = sorted[n - 1].uid;
-        if (prevRanks.lion && prevRanks.lion !== lion) { toast(`🦁 الأسد الجديد: ${usersCache[lion].name}`); if (currentUser.uid === lion) playSound('soundLion'); }
-        if (prevRanks.sheep && prevRanks.sheep !== sheep) { toast(`🐑 الخروف الجديد: ${usersCache[sheep].name}`); if (currentUser.uid === sheep) playSound('soundSheep'); }
+        if (prevRanks.lion && prevRanks.lion !== lion) { toast(`🦁 الأسد الجديد: ${usersCache[lion].name}`); }
+        if (prevRanks.sheep && prevRanks.sheep !== sheep) { toast(`🐑 الخروف الجديد: ${usersCache[sheep].name}`); }
         prevRanks = { lion, sheep };
     }
+
+    // إعلان الأسد والخروف لما الكل يسجّل سكور الجولة
+    checkRoundResult(sorted, r);
 
     // التقدم
     const entered = sorted.filter(p => p.scores[r] !== undefined).length;
@@ -373,6 +380,50 @@ function renderGame() {
     }).join('');
 
     if (isActive('tableScreen')) renderTable();
+}
+
+// ---------- إعلان نهاية الجولة ----------
+let roundShown = null;
+let gameLoaded = false; // مفتاح آخر جولة اتعرض إعلانها
+function checkRoundResult(sorted, r) {
+    const n = sorted.length;
+    // نستنى لحد ما بيانات الماتش واللاعبين يوصلوا كاملين
+    if (!gameLoaded || n !== Object.keys(gameData.players || {}).length) return;
+    const allIn = n >= 2 && sorted.every(p => p.scores[r] !== undefined);
+    const key = `${r}|${sorted.map(p => p.uid).sort().join(',')}`;
+    if (roundShown === null) { roundShown = allIn ? key : ''; return; } // أول تحميل للصفحة: ما نعيدش إعلان قديم
+    if (!allIn) return;
+    if (roundShown === key) return;
+    roundShown = key;
+    if (gameData.state !== 'active') return;
+    showRoundResult(sorted, r);
+}
+
+function pickLine(list, r, uid) {
+    let h = r * 17;
+    for (const ch of uid) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return list[h % list.length];
+}
+
+function showRoundResult(sorted, r) {
+    const lion = sorted[0], sheep = sorted[sorted.length - 1];
+    $('rrTitle').innerText = `نتيجة الجولة ${r} 🃏`;
+    $('rrLionAva').innerText = lion.avatar || '🦁';
+    $('rrLionName').innerText = lion.name;
+    $('rrLionTotal').innerText = `${lion.total} نقطة`;
+    $('rrLionLine').innerText = pickLine(ROUND_LION_LINES, r, lion.uid);
+    $('rrSheepAva').innerText = sheep.avatar || '🐑';
+    $('rrSheepName').innerText = sheep.name;
+    $('rrSheepTotal').innerText = `${sheep.total} نقطة`;
+    $('rrSheepLine').innerText = pickLine(ROUND_SHEEP_LINES, r, sheep.uid);
+    const card = document.querySelector('.round-card');
+    card.classList.remove('go'); void card.offsetWidth; card.classList.add('go');
+    closeSheet('scoreSheet');
+    openModal('roundModal');
+    sfxRoar(0.25);
+    sfxBaa(1.9);
+    haptic([40, 60, 40]);
+    if (currentUser.uid === lion.uid) fireConfetti(120);
 }
 
 // ---------- شيت السكور ----------
@@ -809,7 +860,77 @@ window.changeRound = async function (d) {
     await gameRef().update({ round: next });
 };
 
-function playSound(id) { const a = $(id); if (a) { a.currentTime = 0; a.play().catch(() => {}); } }
+// ---------- أصوات متولّدة (أسد وخروف) — بتشتغل من غير أي ملفات ----------
+let actx = null;
+function audioCtx() {
+    try {
+        if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+        if (actx.state === 'suspended') actx.resume();
+    } catch (e) { actx = null; }
+    return actx;
+}
+// المتصفحات بتطلب لمسة من المستخدم قبل أي صوت، فنفتح الصوت مع أول لمسة
+['pointerdown', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, () => audioCtx(), { once: true, passive: true }));
+
+function sfxRoar(at = 0) {
+    const c = audioCtx(); if (!c) return;
+    const t = c.currentTime + at, dur = 1.5;
+    const out = c.createGain(); out.connect(c.destination);
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.9, t + 0.12);
+    out.gain.setValueAtTime(0.9, t + 0.5);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    // زئير: ضوضاء مفلترة + موجة خشنة نازلة
+    const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource(); noise.buffer = buf;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 6;
+    lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(220, t + dur);
+    const ng = c.createGain(); ng.gain.value = 0.7;
+    noise.connect(lp).connect(ng).connect(out);
+    const o = c.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(55, t + dur);
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 23; lg.gain.value = 18;
+    lfo.connect(lg).connect(o.frequency);
+    const sh = c.createWaveShaper(), curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 6); }
+    sh.curve = curve;
+    const og = c.createGain(); og.gain.value = 0.35;
+    o.connect(sh).connect(og).connect(out);
+    [noise, o, lfo].forEach(n => { n.start(t); n.stop(t + dur); });
+}
+
+function sfxBaa(at = 0) {
+    const c = audioCtx(); if (!c) return;
+    // «مااااء» مرتين بصوت مهزوز — كوميدي
+    [[0, 0.75, 1], [0.85, 1.1, 0.92]].forEach(([off, dur, p]) => {
+        const t = c.currentTime + at + off;
+        const out = c.createGain(); out.connect(c.destination);
+        out.gain.setValueAtTime(0.0001, t);
+        out.gain.exponentialRampToValueAtTime(0.5, t + 0.06);
+        out.gain.setValueAtTime(0.45, t + dur * 0.6);
+        out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        const o = c.createOscillator(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(330 * p, t);
+        o.frequency.linearRampToValueAtTime(300 * p, t + dur * 0.3);
+        o.frequency.linearRampToValueAtTime(270 * p, t + dur);
+        const lfo = c.createOscillator(), lg = c.createGain();
+        lfo.frequency.value = 9; lg.gain.value = 22;
+        lfo.connect(lg).connect(o.frequency);
+        const f1 = c.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 800; f1.Q.value = 3;
+        const f2 = c.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1350; f2.Q.value = 4;
+        const g1 = c.createGain(), g2 = c.createGain(); g1.gain.value = 1.4; g2.gain.value = 0.8;
+        o.connect(f1).connect(g1).connect(out);
+        o.connect(f2).connect(g2).connect(out);
+        [o, lfo].forEach(n => { n.start(t); n.stop(t + dur); });
+    });
+}
+
+function playSound(id) {
+    if (id === 'soundLion') return sfxRoar();
+    if (id === 'soundSheep') return sfxBaa();
+    const a = $(id); if (a) { a.currentTime = 0; a.play().catch(() => {}); }
+}
 function fireConfetti(n) {
     try { confetti({ particleCount: n, spread: 90, origin: { y: 0.7 }, zIndex: 5000, colors: ['#ffd166', '#a78bfa', '#f472b6', '#34d399', '#60a5fa'] }); } catch (e) {}
 }
