@@ -354,6 +354,8 @@ function renderGame() {
 
     // إعلان الأسد والخروف لما الكل يسجّل سكور الجولة
     checkRoundResult(sorted, r);
+    // ونقل الجولة تلقائياً
+    scheduleAutoAdvance(sorted, r);
 
     // التقدم
     const entered = sorted.filter(p => p.scores[r] !== undefined).length;
@@ -367,7 +369,7 @@ function renderGame() {
         prog = `<div class="progress-card ${allIn ? 'complete' : ''}">
             <div class="ring" style="--p:${pct}"><span>${entered}/${n}</span></div>
             <div class="progress-text"><b>${allIn ? 'الكل سجّل ✅' : 'مستنيين السكور…'}</b>
-            <small>${allIn ? (currentUser.isAdmin ? 'تقدر تنقل للجولة الجاية' : 'مستنيين الأدمن') : sorted.filter(p => p.scores[r] === undefined).map(p => p.name).join('، ')}</small></div>
+            <small>${allIn ? (r < TOTAL_ROUNDS ? `هننقل للجولة ${r + 1} تلقائياً… ⏳` : (currentUser.isAdmin ? 'دوس على الشهادات 🏁' : 'مستنيين الأدمن يوزّع الشهادات')) : sorted.filter(p => p.scores[r] === undefined).map(p => p.name).join('، ')}</small></div>
             ${currentUser.isAdmin && allIn ? (r < TOTAL_ROUNDS
                 ? `<button class="btn btn-primary sm pulse" onclick="changeRound(1)">الجولة ${r + 1} ←</button>`
                 : `<button class="btn btn-gold sm pulse" onclick="finishGameAndArchive()">🏁 الشهادات</button>`) : ''}
@@ -429,6 +431,44 @@ function checkRoundResult(sorted, r) {
     roundShown = key;
     if (gameData.state !== 'active') return;
     showRoundResult(sorted, r);
+}
+
+// ---------- نقل الجولة تلقائياً ----------
+// أي جهاز شايف إن الكل سجّل بيحاول ينقل بعد ثواني (بعد إعلان الأسد والخروف)،
+// والـ transaction بتضمن إن النقل يحصل مرة واحدة بس حتى لو كذا جهاز حاولوا مع بعض.
+const AUTO_ADVANCE_MS = 6500;
+let autoAdvanceTimer = null, autoAdvanceRound = null;
+function scheduleAutoAdvance(sorted, r) {
+    const n = sorted.length;
+    const ready = gameLoaded && gameData.state === 'active' && n >= 2 && r < TOTAL_ROUNDS
+        && n === Object.keys(gameData.players || {}).length
+        && sorted.every(p => p.scores[r] !== undefined);
+    if (!ready) {
+        if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; autoAdvanceRound = null; }
+        return;
+    }
+    if (autoAdvanceRound === r) return; // متجدول بالفعل
+    clearTimeout(autoAdvanceTimer);
+    autoAdvanceRound = r;
+    autoAdvanceTimer = setTimeout(() => { autoAdvanceTimer = null; autoAdvanceRound = null; tryAutoAdvance(r); }, AUTO_ADVANCE_MS);
+}
+
+async function tryAutoAdvance(r) {
+    try {
+        await db.runTransaction(async tx => {
+            const snap = await tx.get(gameRef());
+            if (!snap.exists) return;
+            const g = snap.data();
+            const players = g.players || {};
+            const ids = Object.keys(players);
+            const allIn = ids.length >= 2 && ids.every(id => (players[id].scores || {})[r] !== undefined);
+            if (g.state !== 'active' || (g.round || 1) !== r || r >= TOTAL_ROUNDS || !allIn) return;
+            tx.update(gameRef(), { round: r + 1 });
+        });
+    } catch (e) {
+        // لو قواعد Firestore مش سامحة للاعب العادي، جهاز الأدمن هو اللي هينقل
+        console.warn('auto-advance', e.code || e);
+    }
 }
 
 function pickLine(list, r, uid) {

@@ -33,6 +33,12 @@ service cloud.firestore {
         // أي لاعب يقدر يلف عجلة السكيب (بتظهر عند الكل)
         signedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['skipSpin'])
+      ) || (
+        // أي لاعب يقدر ينقل الجولة خطوة واحدة لقدام (النقل التلقائي لما الكل يسجّل)
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['round']) &&
+        request.resource.data.round == resource.data.round + 1 &&
+        request.resource.data.round <= 10
       );
       allow delete: if isAdmin();
     }
