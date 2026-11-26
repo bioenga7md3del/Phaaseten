@@ -706,42 +706,51 @@ function renderTable() {
 // ==========================================
 // 9. لوحة الشرف
 // ==========================================
-// نقاط لوحة الشرف: أسد +3 • نمر +1 • معزة −1 • خروف −3
-const FAME_POINTS = { lion: 3, tiger: 1, goat: -1, sheep: -3 };
+// نقاط لوحة الشرف: أسد +2 • نمر +1 • معزة −1 • خروف −2
+// والترتيب بالمعدل (النقاط ÷ عدد الماتشات) عشان اللي لعب كتير ما ياخدش ميزة لمجرد إنه لعب كتير
+const FAME_POINTS = { lion: 2, tiger: 1, goat: -1, sheep: -2 };
+const FAME_MIN_GAMES = 10; // أقل من كده = لسه تحت التقييم وبيترتب بعد الباقيين
 function famePoints(u) {
     return (u.lionCount || 0) * FAME_POINTS.lion + (u.tigerCount || 0) * FAME_POINTS.tiger
         + (u.goatCount || 0) * FAME_POINTS.goat + (u.sheepCount || 0) * FAME_POINTS.sheep;
 }
-const signed = n => (n > 0 ? '+' : '') + n;
+const signed = (n, d = 0) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(d);
 
 function renderFame() {
-    const users = Object.entries(usersCache).map(([uid, u]) => ({ uid, ...u, pts: famePoints(u) }))
-        .sort((a, b) => b.pts - a.pts || (b.lionCount || 0) - (a.lionCount || 0)
-            || (a.sheepCount || 0) - (b.sheepCount || 0) || (a.gamesPlayed || 0) - (b.gamesPlayed || 0)
-            || (a.name || '').localeCompare(b.name || '', 'ar'));
+    const users = Object.entries(usersCache).map(([uid, u]) => {
+        const g = u.gamesPlayed || 0, pts = famePoints(u);
+        return { uid, ...u, g, pts, avg: g ? pts / g : 0, qualified: g >= FAME_MIN_GAMES };
+    }).sort((a, b) => (b.qualified - a.qualified) || b.avg - a.avg || b.pts - a.pts
+        || (b.lionCount || 0) - (a.lionCount || 0) || (a.name || '').localeCompare(b.name || '', 'ar'));
 
     const pod = $('famePodium');
-    if (users.length >= 3) {
+    const top = users.filter(u => u.qualified);
+    if (top.length >= 3) {
         const slot = (u, place) => `<div class="pod p${place}">
             <div class="pod-avatar">${esc(u.avatar)}<span class="pod-badge">${['', '🥇', '🥈', '🥉'][place]}</span></div>
             <div class="pod-name">${esc(u.name)}</div>
-            <div class="pod-block"><b dir="ltr">${signed(u.pts)}</b><small>نقطة</small></div></div>`;
-        pod.innerHTML = slot(users[1], 2) + slot(users[0], 1) + slot(users[2], 3);
+            <div class="pod-block"><b dir="ltr">${signed(u.avg, 2)}</b><small>للماتش</small></div></div>`;
+        pod.innerHTML = slot(top[1], 2) + slot(top[0], 1) + slot(top[2], 3);
         pod.hidden = false;
     } else pod.hidden = true;
 
-    const maxPts = Math.max(1, ...users.map(u => Math.abs(u.pts)));
+    const maxAvg = Math.max(0.01, ...users.map(u => Math.abs(u.avg)));
+    let shownDivider = false;
     $('fameList').innerHTML = users.map((u, i) => {
-        const g = u.gamesPlayed || 0;
-        const wr = g ? Math.round(((u.lionCount || 0) / g) * 100) : 0;
-        const bar = Math.round((Math.abs(u.pts) / maxPts) * 100);
-        return `<div class="row ${u.uid === currentUser.uid ? 'me' : ''}">
-            <div class="pos">${i + 1}</div>
+        const wr = u.g ? Math.round(((u.lionCount || 0) / u.g) * 100) : 0;
+        const bar = Math.round((Math.abs(u.avg) / maxAvg) * 100);
+        let divider = '';
+        if (!u.qualified && !shownDivider) {
+            shownDivider = true;
+            divider = `<div class="fame-divider">لسه تحت التقييم (أقل من ${FAME_MIN_GAMES} ماتشات)</div>`;
+        }
+        return `${divider}<div class="row ${u.uid === currentUser.uid ? 'me' : ''} ${u.qualified ? '' : 'provisional'}">
+            <div class="pos">${u.qualified ? i + 1 : '–'}</div>
             <div class="avatar">${esc(u.avatar)}</div>
             <div class="row-main">
-                <div class="row-title">${esc(u.name)} <span class="fame-pts ${u.pts < 0 ? 'neg' : ''}" dir="ltr">${signed(u.pts)}</span></div>
-                <div class="row-sub">${g} ماتش • فوز ${wr}%</div>
-                <div class="winbar ${u.pts < 0 ? 'neg' : ''}"><i style="width:${bar}%"></i></div>
+                <div class="row-title">${esc(u.name)} <span class="fame-pts ${u.avg < 0 ? 'neg' : ''}" dir="ltr">${signed(u.avg, 2)}</span></div>
+                <div class="row-sub">${signed(u.pts)} نقطة • ${u.g} ماتش • فوز ${wr}%</div>
+                <div class="winbar ${u.avg < 0 ? 'neg' : ''}"><i style="width:${bar}%"></i></div>
             </div>
             <div class="fame-stats">
                 <span>🦁<b>${u.lionCount || 0}</b></span><span>🐯<b>${u.tigerCount || 0}</b></span>
