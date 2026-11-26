@@ -173,6 +173,7 @@ function setupRealtimeListeners() {
         gameData = doc.data();
         if (!gameData.players) gameData.players = {};
         renderAll();
+        onSkipSpinUpdate(gameData.skipSpin);
         if (gameData.state === 'finished' && gameData.finalResults) {
             localFinalResults = gameData.finalResults;
             const id = String(localFinalResults.id || localFinalResults.date);
@@ -466,21 +467,57 @@ function drawWheel(names, rot) {
     }
 }
 
-window.randomSkip = function () {
+// اللي بيدوس يختار النتيجة ويكتبها في الماتش، وكل الأجهزة (هو منهم) بتلف نفس اللفة بالظبط
+let lastSpinId;
+window.randomSkip = async function () {
     if (wheelSpinning) return;
     const c = Object.keys(gameData.players || {}).filter(uid => uid !== currentUser.uid && usersCache[uid]);
     if (!c.length) return toast("مفيش حد غيرك!");
-    const labels = c.map(uid => `${usersCache[uid].avatar || ''} ${usersCache[uid].name}`.trim());
-    const n = c.length, seg = (Math.PI * 2) / n;
-    const winner = Math.floor(Math.random() * n);
+    const spin = {
+        id: `${Date.now()}_${currentUser.uid}`,
+        ts: Date.now(),
+        by: currentUser.uid,
+        byName: currentUser.name || '',
+        cands: c,
+        labels: c.map(uid => `${usersCache[uid].avatar || ''} ${usersCache[uid].name}`.trim()),
+        names: c.map(uid => usersCache[uid].name),
+        winner: Math.floor(Math.random() * c.length),
+        turns: 6 + Math.floor(Math.random() * 3),
+        jitter: Math.random() - 0.5,
+        duration: Math.round(5200 + Math.random() * 1200),
+        comment: Math.floor(Math.random() * SKIP_COMMENTS.length)
+    };
+    try { await gameRef().update({ skipSpin: spin }); }
+    catch (e) {
+        // لو الكتابة اتمنعت (مثلاً قواعد Firestore مش متحدثة) نلف عندي أنا بس
+        console.error(e);
+        if (lastSpinId !== spin.id) { lastSpinId = spin.id; playSkipSpin(spin); }
+    }
+};
 
-    // الزاوية اللي توقّف نص شريحة الفائز (مع شوية عشوائية جوه الشريحة) تحت السهم
-    const jitter = (Math.random() - 0.5) * seg * 0.7;
-    const target = (Math.PI * 2) * (6 + Math.floor(Math.random() * 3)) - (winner * seg + seg / 2 + jitter);
-    const duration = 5200 + Math.random() * 1200;
+function onSkipSpinUpdate(sp) {
+    if (!sp || !sp.id) { if (lastSpinId === undefined) lastSpinId = null; return; }
+    if (sp.id === lastSpinId) return;
+    const firstLoad = lastSpinId === undefined;
+    lastSpinId = sp.id;
+    // أول ما الصفحة تفتح ما نعيدش لفة قديمة خلصت
+    if (firstLoad && Date.now() - Number(sp.ts || 0) > (sp.duration || 6000) + 3000) return;
+    playSkipSpin(sp);
+}
+
+function playSkipSpin(sp) {
+    const labels = sp.labels || [];
+    const n = labels.length;
+    if (!n) return;
+    const seg = (Math.PI * 2) / n;
+    const target = (Math.PI * 2) * sp.turns - (sp.winner * seg + seg / 2 + sp.jitter * seg * 0.7);
+    const duration = sp.duration;
+    const myId = sp.id;
 
     $('skipResult').classList.remove('show');
     $('skipCloseBtn').disabled = true;
+    $('skipSpinner').innerText = sp.by === currentUser?.uid ? 'أنت اللي بتلف 🎡' : `${sp.byName || 'حد'} بيلف العجلة 🎡`;
+    closeSheet('scoreSheet');
     drawWheel(labels, 0);
     openModal('skipModal');
     wheelSpinning = true;
@@ -488,25 +525,27 @@ window.randomSkip = function () {
     const ease = t => 1 - Math.pow(1 - t, 4);
     let start = null, lastSeg = -1;
     const frame = ts => {
+        if (lastSpinId !== myId) return; // لفة أجدد بدأت
         if (start === null) start = ts;
         const t = Math.min(1, (ts - start) / duration);
         const rot = target * ease(t);
         drawWheel(labels, rot);
-        // تكتكة مع كل شريحة بتعدي تحت السهم
         const under = Math.floor((((-rot) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / seg);
         if (under !== lastSeg) { lastSeg = under; haptic(4); }
         if (t < 1) return requestAnimationFrame(frame);
         wheelSpinning = false;
-        $('skipTargetName').innerText = usersCache[c[winner]].name;
-        $('skipComment').innerText = SKIP_COMMENTS[Math.floor(Math.random() * SKIP_COMMENTS.length)];
+        const loser = sp.cands?.[sp.winner];
+        $('skipTargetName').innerText = (loser && usersCache[loser]?.name) || sp.names?.[sp.winner] || '';
+        $('skipComment').innerText = SKIP_COMMENTS[(sp.comment || 0) % SKIP_COMMENTS.length];
+        $('skipSpinner').innerText = loser === currentUser?.uid ? '😱 العجلة وقفت عليك!' : `${sp.by === currentUser?.uid ? 'أنت' : (sp.byName || 'حد')} لف العجلة`;
         $('skipResult').classList.add('show');
         $('skipCloseBtn').disabled = false;
         playSound('soundSkip');
-        haptic([30, 40, 30]);
+        haptic(loser === currentUser?.uid ? [60, 40, 60, 40, 60] : [30, 40, 30]);
         fireConfetti(60);
     };
     requestAnimationFrame(frame);
-};
+}
 
 // ==========================================
 // 8. الجدول

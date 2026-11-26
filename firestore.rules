@@ -21,7 +21,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // المباراة: الأدمن يعمل أي حاجة. اللاعب يعدل السكور بتاعه هو بس.
+    // المباراة: الأدمن يعمل أي حاجة. اللاعب يعدل السكور بتاعه هو بس، ويقدر يلف عجلة السكيب.
     match /game_session/{docId} {
       allow read: if signedIn();
       allow create: if signedIn();
@@ -29,6 +29,10 @@ service cloud.firestore {
         signedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players']) &&
         request.resource.data.players.diff(resource.data.players).affectedKeys().hasOnly([request.auth.uid])
+      ) || (
+        // أي لاعب يقدر يلف عجلة السكيب (بتظهر عند الكل)
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['skipSpin'])
       );
       allow delete: if isAdmin();
     }
