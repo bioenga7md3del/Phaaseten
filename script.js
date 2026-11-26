@@ -492,8 +492,8 @@ function showRoundResult(sorted, r) {
     card.classList.remove('go'); void card.offsetWidth; card.classList.add('go');
     closeSheet('scoreSheet');
     openModal('roundModal');
-    sfxRoar(0.25);
-    sfxBaa(1.9);
+    lionSound(0.2);
+    sheepSound(2.1);
     haptic([40, 60, 40]);
     if (currentUser.uid === lion.uid) fireConfetti(120);
 }
@@ -1062,9 +1062,36 @@ function sfxBaa(at = 0) {
     });
 }
 
+// أصوات حقيقية متسجّلة (ElevenLabs) — ولو لسه ما اتحمّلتش نرجع للأصوات المتولّدة
+const SFX_FILES = { lion: 'sounds/lion.mp3?v=1', sheep: 'sounds/sheep.mp3?v=1' };
+const sfxBuffers = {};
+let sfxLoading = false;
+function loadSfx() {
+    const c = audioCtx(); if (!c || sfxLoading) return;
+    sfxLoading = true;
+    Object.entries(SFX_FILES).forEach(([k, url]) => {
+        fetch(url).then(r => r.arrayBuffer())
+            .then(b => new Promise((res, rej) => c.decodeAudioData(b, res, rej)))
+            .then(buf => { sfxBuffers[k] = buf; })
+            .catch(e => console.warn('sfx', k, e));
+    });
+}
+['pointerdown', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, () => loadSfx(), { once: true, passive: true }));
+function playSample(k, at = 0, vol = 1) {
+    const c = audioCtx(), buf = sfxBuffers[k];
+    if (!c || !buf) return false;
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf; g.gain.value = vol;
+    src.connect(g).connect(c.destination);
+    src.start(c.currentTime + at);
+    return true;
+}
+function lionSound(at = 0) { if (!playSample('lion', at)) sfxRoar(at); }
+function sheepSound(at = 0) { if (!playSample('sheep', at)) sfxBaa(at); }
+
 function playSound(id) {
-    if (id === 'soundLion') return sfxRoar();
-    if (id === 'soundSheep') return sfxBaa();
+    if (id === 'soundLion') return lionSound();
+    if (id === 'soundSheep') return sheepSound();
     const a = $(id); if (a) { a.currentTime = 0; a.play().catch(() => {}); }
 }
 function fireConfetti(n) {
