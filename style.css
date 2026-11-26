@@ -635,3 +635,4 @@ input:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255,207,90,.
 .fame-pts { font-family: var(--num); font-weight: 800; font-size: 13px; color: var(--gold); background: rgba(255,207,90,.14); padding: 1px 8px; border-radius: 99px; }
 .fame-pts.neg { color: var(--ruby); background: rgba(255,77,109,.14); }
 .winbar.neg i { background: linear-gradient(90deg, #ff4d6d, #ff8a9e); }
+.fame-rule { margin-bottom: 34px; }
