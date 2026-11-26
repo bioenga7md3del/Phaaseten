@@ -552,10 +552,54 @@ function drawWheel(names, rot) {
 
 // اللي بيدوس يختار النتيجة ويكتبها في الماتش، وكل الأجهزة (هو منهم) بتلف نفس اللفة بالظبط
 let lastSpinId;
-window.randomSkip = async function () {
+// اختيار مين يدخل العجلة قبل اللف
+let skipPick = new Set();
+let skipExcluded = new Set(); // بنفتكر اللي شلته المرة اللي فاتت
+window.randomSkip = function () {
     if (wheelSpinning) return;
-    const c = Object.keys(gameData.players || {}).filter(uid => uid !== currentUser.uid && usersCache[uid]);
-    if (!c.length) return toast("مفيش حد غيرك!");
+    const all = Object.keys(gameData.players || {}).filter(uid => usersCache[uid]);
+    if (all.length < 2) return toast("مفيش حد غيرك!");
+    // افتراضياً: الكل ما عدا أنت واللي شلتهم قبل كده
+    skipPick = new Set(all.filter(uid => uid !== currentUser.uid && !skipExcluded.has(uid)));
+    renderSkipPick();
+    openSheet('skipPickSheet');
+};
+
+function renderSkipPick() {
+    const all = Object.keys(gameData.players || {}).filter(uid => usersCache[uid])
+        .sort((a, b) => (a === currentUser.uid) - (b === currentUser.uid) || (usersCache[a].name || '').localeCompare(usersCache[b].name || '', 'ar'));
+    $('skipPickList').innerHTML = all.map(uid => {
+        const u = usersCache[uid], on = skipPick.has(uid);
+        return `<div class="row tappable ${on ? 'selected' : 'out'}" onclick="toggleSkipPick('${uid}')">
+            <div class="avatar">${esc(u.avatar)}</div>
+            <div class="row-main"><div class="row-title">${esc(u.name)}${uid === currentUser.uid ? ' <span class="tag me">أنت</span>' : ''}</div>
+            <div class="row-sub">${on ? 'جوه العجلة 🎯' : 'برّه العجلة 😌'}</div></div>
+            <span class="check ${on ? 'on' : ''}">✓</span>
+        </div>`;
+    }).join('');
+    const n = skipPick.size;
+    $('skipPickCount').innerText = `${n} في العجلة`;
+    $('skipPickGo').disabled = n < 1;
+    $('skipPickGo').innerText = n === 1 ? `🎯 السكيب لـ ${usersCache[[...skipPick][0]]?.name} على طول` : `🎡 لفّ العجلة (${n})`;
+}
+window.toggleSkipPick = uid => { haptic(); skipPick.has(uid) ? skipPick.delete(uid) : skipPick.add(uid); renderSkipPick(); };
+window.skipPickAll = on => {
+    haptic();
+    skipPick = new Set(on ? Object.keys(gameData.players || {}).filter(uid => usersCache[uid] && uid !== currentUser.uid) : []);
+    renderSkipPick();
+};
+window.confirmSkipPick = function () {
+    if (!skipPick.size) return toast("اختار لاعب واحد على الأقل");
+    const all = Object.keys(gameData.players || {}).filter(uid => usersCache[uid] && uid !== currentUser.uid);
+    skipExcluded = new Set(all.filter(uid => !skipPick.has(uid)));
+    closeSheet('skipPickSheet');
+    startSkipSpin([...skipPick]);
+};
+
+async function startSkipSpin(c) {
+    if (wheelSpinning) return;
+    c = c.filter(uid => usersCache[uid]);
+    if (!c.length) return toast("مفيش حد في العجلة!");
     const spin = {
         id: `${Date.now()}_${currentUser.uid}`,
         ts: Date.now(),

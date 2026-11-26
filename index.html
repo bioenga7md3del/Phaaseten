@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@300;400;500;600;700&family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261126c">
+    <link rel="stylesheet" href="style.css?v=20261126d">
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -221,6 +221,22 @@
         </div>
     </div>
 
+    <!-- ================= اختيار لاعبين العجلة ================= -->
+    <div id="skipPickSheet" class="sheet">
+        <div class="sheet-body">
+            <div class="grabber"></div>
+            <h3 class="sheet-title">🎡 مين يدخل العجلة؟</h3>
+            <p class="section-hint">شيل اللي مش عايزه، وسيب اللي عايز السكيب يقع عليه 😈</p>
+            <div class="sp-tools">
+                <button class="text-btn" onclick="skipPickAll(true)">✓ الكل</button>
+                <button class="text-btn" onclick="skipPickAll(false)">✕ ولا حد</button>
+                <span class="chip" id="skipPickCount"></span>
+            </div>
+            <div id="skipPickList" class="list compact"></div>
+            <button id="skipPickGo" class="btn btn-primary btn-lg" style="margin-top:14px" onclick="confirmSkipPick()">🎡 لفّ العجلة</button>
+        </div>
+    </div>
+
     <div id="pickSheet" class="sheet">
         <div class="sheet-body">
             <div class="grabber"></div>
@@ -308,6 +324,6 @@
     <audio id="soundSkip" preload="none" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="script.js?v=20261126c"></script>
+    <script src="script.js?v=20261126d"></script>
 </body>
 </html>
