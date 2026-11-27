@@ -1,0 +1,20 @@
+{
+  "name": "Phase 10 — ليلة اللعب",
+  "short_name": "Phase 10",
+  "description": "سجّل سكور Phase 10 مع صحابك… والخروف هيبان لوحده 🐑",
+  "lang": "ar",
+  "dir": "rtl",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f2a22",
+  "theme_color": "#0f2a22",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

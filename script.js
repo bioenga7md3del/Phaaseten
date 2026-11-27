@@ -1235,3 +1235,43 @@ function initAvatars() {
         c.appendChild(s);
     });
 }
+
+
+// ==========================================
+// 13. تثبيت التطبيق على الموبايل (PWA)
+// ==========================================
+let deferredInstall = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function installDismissed() { try { return Number(localStorage.getItem('p10_installDismissed') || 0) > Date.now(); } catch (e) { return false; } }
+
+function updateInstallBanner() {
+    const b = $('installBanner');
+    if (!b) return;
+    if (isStandalone() || installDismissed()) { b.hidden = true; return; }
+    if (deferredInstall) {
+        $('installHint').innerText = 'أيقونة على الشاشة الرئيسية وتفتح كأنها تطبيق';
+        $('installBtn').hidden = false;
+        b.hidden = false;
+    } else if (isIOS()) {
+        $('installHint').innerText = 'من Safari: دوس زر المشاركة ⬆️ ثم «إضافة إلى الشاشة الرئيسية» ➕';
+        $('installBtn').hidden = true;
+        b.hidden = false;
+    } else b.hidden = true;
+}
+
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; updateInstallBanner(); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; toast("اتثبّت ✅ دوّر على الأيقونة في الشاشة الرئيسية"); updateInstallBanner(); });
+document.addEventListener('DOMContentLoaded', () => setTimeout(updateInstallBanner, 800));
+
+window.installApp = async function () {
+    if (!deferredInstall) return updateInstallBanner();
+    deferredInstall.prompt();
+    try { await deferredInstall.userChoice; } catch (e) {}
+    deferredInstall = null;
+    updateInstallBanner();
+};
+window.dismissInstall = function () {
+    try { localStorage.setItem('p10_installDismissed', String(Date.now() + 7 * 864e5)); } catch (e) {}
+    $('installBanner').hidden = true;
+};

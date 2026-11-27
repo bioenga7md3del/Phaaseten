@@ -651,3 +651,14 @@ input:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255,207,90,.
 #skipPickGo[disabled] { opacity: .45; pointer-events: none; }
 .fame-divider { text-align: center; font-size: 12px; color: var(--muted); margin: 10px 0 2px; }
 .row.provisional { opacity: .7; }
+
+/* بانر تثبيت التطبيق */
+.install-banner { display: flex; align-items: center; gap: 10px; margin: 12px 0; padding: 10px 12px; border-radius: 20px; position: relative;
+    background: linear-gradient(90deg, rgba(255,207,90,.2), rgba(255,207,90,.05)); border: 1px solid rgba(255,207,90,.45); }
+.install-banner[hidden] { display: none; }
+.ib-icon img { width: 44px; height: 44px; border-radius: 12px; display: block; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.ib-text { flex: 1; min-width: 0; }
+.ib-text b { display: block; font-size: 13px; }
+.ib-text small { display: block; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.ib-x { position: absolute; top: -8px; left: -6px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line-2); background: #0d231c; color: var(--muted); font-size: 11px; }
+#installBtn[hidden] { display: none; }

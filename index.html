@@ -9,11 +9,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Phase 10">
     <title>Phase 10 Ultimate</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@300;400;500;600;700&family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261126h">
+    <link rel="stylesheet" href="style.css?v=20261127a">
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -78,7 +80,14 @@
             <span class="edit-dot">✎</span>
         </div>
 
-        <button id="liveBanner" class="live-banner" onclick="showScreen('gameScreen')" hidden>
+        <div id="installBanner" class="install-banner" hidden>
+                <div class="ib-icon"><img src="icons/icon-192.png" alt=""></div>
+                <div class="ib-text"><b>نزّل Phase 10 على موبايلك 📲</b><small id="installHint">أيقونة على الشاشة الرئيسية وتفتح كأنها تطبيق</small></div>
+                <button class="btn btn-primary sm" id="installBtn" onclick="installApp()">تثبيت</button>
+                <button class="ib-x" onclick="dismissInstall()" aria-label="إغلاق">✕</button>
+            </div>
+
+            <button id="liveBanner" class="live-banner" onclick="showScreen('gameScreen')" hidden>
             <span class="live-dot"></span>
             <span class="live-text"><b>ماتش شغال دلوقتي</b><small id="liveInfo"></small></span>
             <span class="live-go">ادخل ←</span>
@@ -322,6 +331,9 @@
             <audio id="soundSkip" preload="none" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="script.js?v=20261126h"></script>
+    <script src="script.js?v=20261127a"></script>
+    <script>
+        if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    </script>
 </body>
 </html>
