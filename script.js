@@ -803,7 +803,7 @@ function renderFame() {
     const pod = $('famePodium');
     const top = users.filter(u => u.qualified);
     if (top.length >= 3) {
-        const slot = (u, place) => `<div class="pod p${place}">
+        const slot = (u, place) => `<div class="pod p${place} ${place === 1 ? 'tappable' : ''}" ${place === 1 ? 'onclick="tapKing(this, event)"' : ''}>
             <div class="pod-avatar">${esc(u.avatar)}<span class="pod-badge">${['', '🥇', '🥈', '🥉'][place]}</span></div>
             <div class="pod-name">${esc(u.name)}</div>
             ${place === 1 ? '<div class="pod-title">أبو لِبدة الأعظم</div>' : ''}
@@ -837,7 +837,8 @@ function renderFame() {
             <div class="fs-txt"><small>🦸‍♂️ سوبر خروف الموسم</small><b>${esc(sh.name)}</b>
             <span>${lines[(sh.sheepCount || 0) % lines.length]} • <em dir="ltr">${signed(sh.avg, 2)}</em> للماتش</span></div>`;
         fs.hidden = false;
-    } else { fs.hidden = true; fs.innerHTML = ''; }
+        fs.onclick = e => tapSheep(fs, e);
+    } else { fs.hidden = true; fs.innerHTML = ''; fs.onclick = null; }
 
     const maxAvg = Math.max(0.01, ...users.map(u => Math.abs(u.avg)));
     let shownDivider = false;
@@ -849,7 +850,7 @@ function renderFame() {
             shownDivider = true;
             divider = `<div class="fame-divider">لسه تحت التقييم (أقل من ${FAME_MIN_GAMES} ماتشات)</div>`;
         }
-        return `${divider}<div class="row ${u.uid === currentUser.uid ? 'me' : ''} ${u.qualified ? '' : 'provisional'} ${u.uid === kingUid ? 'is-king' : ''} ${u.uid === sheepUid ? 'is-super' : ''}">
+        return `${divider}<div class="row ${u.uid === currentUser.uid ? 'me' : ''} ${u.qualified ? '' : 'provisional'} ${u.uid === kingUid ? 'is-king tappable' : ''} ${u.uid === sheepUid ? 'is-super tappable' : ''}" ${u.uid === kingUid ? 'onclick="tapKing(this, event)"' : u.uid === sheepUid ? 'onclick="tapSheep(this, event)"' : ''}>
             <div class="pos">${u.qualified ? i + 1 : '–'}</div>
             <div class="avatar">${esc(u.avatar)}</div>
             <div class="row-main">
@@ -1303,4 +1304,50 @@ window.installApp = async function () {
 window.dismissInstall = function () {
     try { localStorage.setItem('p10_installDismissed', String(Date.now() + 7 * 864e5)); } catch (e) {}
     $('installBanner').hidden = true;
+};
+
+
+// ==========================================
+// 14. دوس على الأسد أو السوبر خروف 😂
+// ==========================================
+const ROAR_POPS = ['ROARRR 🦁', 'زئيييير!', 'وسّع للملك 👑', '🦁🔥', 'أنا الأسد هنا!'];
+const BAA_POPS = ['مااااء 🐑', 'ماااء ماااء', 'برسيم؟ 🌿', '🐑💨', 'سيبوني في حالي!'];
+let lastTapSound = 0;
+function popBubble(el, e, text, cls) {
+    const r = el.getBoundingClientRect();
+    const x = (e && e.clientX) || (r.left + r.width / 2), y = (e && e.clientY) || (r.top + r.height / 2);
+    const b = document.createElement('div');
+    b.className = `tap-pop ${cls}`;
+    b.textContent = text;
+    b.style.left = `${x}px`; b.style.top = `${y}px`;
+    b.style.setProperty('--dx', `${(Math.random() - .5) * 80}px`);
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 1300);
+    for (let i = 0; i < 6; i++) {
+        const p = document.createElement('div');
+        p.className = `tap-emoji ${cls}`;
+        p.textContent = cls === 'roar' ? ['🦁', '👑', '✨', '🔥'][i % 4] : ['🐑', '🌿', '💨', '🌾'][i % 4];
+        p.style.left = `${x}px`; p.style.top = `${y}px`;
+        const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 70;
+        p.style.setProperty('--tx', `${Math.cos(a) * d}px`);
+        p.style.setProperty('--ty', `${Math.sin(a) * d - 40}px`);
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1100);
+    }
+}
+function restartAnim(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), 900); }
+
+window.tapKing = function (el, e) {
+    audioCtx(); loadSfx();
+    if (Date.now() - lastTapSound > 700) { lionSound(); lastTapSound = Date.now(); }
+    restartAnim(el, 'roaring');
+    popBubble(el, e, ROAR_POPS[Math.floor(Math.random() * ROAR_POPS.length)], 'roar');
+    haptic([20, 30, 60]);
+};
+window.tapSheep = function (el, e) {
+    audioCtx(); loadSfx();
+    if (Date.now() - lastTapSound > 700) { sheepSound(); lastTapSound = Date.now(); }
+    restartAnim(el, 'baaing');
+    popBubble(el, e, BAA_POPS[Math.floor(Math.random() * BAA_POPS.length)], 'baa');
+    haptic([15, 20, 15, 20, 15]);
 };
