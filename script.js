@@ -806,10 +806,38 @@ function renderFame() {
         const slot = (u, place) => `<div class="pod p${place}">
             <div class="pod-avatar">${esc(u.avatar)}<span class="pod-badge">${['', '🥇', '🥈', '🥉'][place]}</span></div>
             <div class="pod-name">${esc(u.name)}</div>
+            ${place === 1 ? '<div class="pod-title">أبو لِبدة الأعظم</div>' : ''}
             <div class="pod-block"><b dir="ltr">${signed(u.avg, 2)}</b><small>للماتش</small></div></div>`;
         pod.innerHTML = slot(top[1], 2) + slot(top[0], 1) + slot(top[2], 3);
         pod.hidden = false;
     } else pod.hidden = true;
+
+    // ألقاب كوميدية للترتيب العام
+    const q = users.filter(u => u.qualified);
+    const kingUid = q.length >= 2 ? q[0].uid : null;
+    const sheepUid = q.length >= 2 ? q[q.length - 1].uid : null;
+    const tigerUid = q.length >= 4 ? q[1].uid : null;
+    const goatUid = q.length >= 4 ? q[q.length - 2].uid : null;
+    const titleOf = (u, idx) => {
+        if (u.uid === kingUid) return '<span class="ftitle king">👑 أبو لِبدة الأعظم</span>';
+        if (u.uid === sheepUid) return '<span class="ftitle super">🦸‍♂️🐑 سوبر خروف</span>';
+        if (u.uid === tigerUid) return '<span class="ftitle tiger">🐯 الوريث المتربّص</span>';
+        if (u.uid === goatUid) return '<span class="ftitle goat">🐐 على حافة البرسيم</span>';
+        if (!u.qualified) return '<span class="ftitle">🐣 لسه بيتعلم</span>';
+        return '<span class="ftitle">🌳 مواطن في الغابة</span>';
+    };
+
+    // كارت «سوبر خروف الموسم»
+    const fs = $('fameSheep');
+    if (sheepUid) {
+        const sh = q[q.length - 1];
+        const lines = ['حامل لقب البرسيم الذهبي 🌿🏆', 'بيدافع عن القاع بشراسة', 'مفيش حد قدر ينزل تحته… لسه', 'الحظيرة بتسلّم عليك 🏚️', 'ماااااء يا بطل 🐑'];
+        fs.innerHTML = `<div class="fs-cape"></div>
+            <div class="fs-ava">${esc(sh.avatar)}<span class="fs-mask">🐑</span></div>
+            <div class="fs-txt"><small>🦸‍♂️ سوبر خروف الموسم</small><b>${esc(sh.name)}</b>
+            <span>${lines[(sh.sheepCount || 0) % lines.length]} • <em dir="ltr">${signed(sh.avg, 2)}</em> للماتش</span></div>`;
+        fs.hidden = false;
+    } else { fs.hidden = true; fs.innerHTML = ''; }
 
     const maxAvg = Math.max(0.01, ...users.map(u => Math.abs(u.avg)));
     let shownDivider = false;
@@ -821,12 +849,13 @@ function renderFame() {
             shownDivider = true;
             divider = `<div class="fame-divider">لسه تحت التقييم (أقل من ${FAME_MIN_GAMES} ماتشات)</div>`;
         }
-        return `${divider}<div class="row ${u.uid === currentUser.uid ? 'me' : ''} ${u.qualified ? '' : 'provisional'}">
+        return `${divider}<div class="row ${u.uid === currentUser.uid ? 'me' : ''} ${u.qualified ? '' : 'provisional'} ${u.uid === kingUid ? 'is-king' : ''} ${u.uid === sheepUid ? 'is-super' : ''}">
             <div class="pos">${u.qualified ? i + 1 : '–'}</div>
             <div class="avatar">${esc(u.avatar)}</div>
             <div class="row-main">
                 <div class="row-title">${esc(u.name)} <span class="fame-pts ${u.avg < 0 ? 'neg' : ''}" dir="ltr">${signed(u.avg, 2)}</span></div>
-                <div class="row-sub">${signed(u.pts, Number.isInteger(u.pts) ? 0 : 1)} نقطة • ${u.g} ماتش • فوز ${wr}%</div>
+                <div class="ftitle-wrap">${titleOf(u, i)}</div>
+                <div class="row-sub">${signed(u.pts, Number.isInteger(u.pts) ? 0 : 1)} نقطة • ${u.g} ماتش</div>
                 <div class="winbar ${u.avg < 0 ? 'neg' : ''}"><i style="width:${bar}%"></i></div>
             </div>
             <div class="fame-stats">
